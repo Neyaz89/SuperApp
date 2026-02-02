@@ -94,7 +94,7 @@ async function extractWithCobalt(url, platform) {
           'Accept': 'application/json',
           'Content-Type': 'application/json'
         },
-        timeout: 8000
+        timeout: 6000 // Reduced timeout
       });
 
       const data = response.data;
@@ -151,15 +151,13 @@ async function extractWithInvidious(url, platform) {
   const instances = [
     'https://inv.nadeko.net',
     'https://invidious.privacyredirect.com',
-    'https://invidious.nerdvpn.de',
-    'https://inv.tux.pizza',
-    'https://invidious.protokolla.fi'
+    'https://inv.tux.pizza'
   ];
 
   for (const instance of instances) {
     try {
       const response = await axios.get(`${instance}/api/v1/videos/${videoId}`, {
-        timeout: 7000
+        timeout: 5000 // Reduced timeout
       });
 
       const data = response.data;
@@ -220,14 +218,13 @@ async function extractWithPiped(url, platform) {
 
   const instances = [
     'https://pipedapi.kavin.rocks',
-    'https://pipedapi.tokhmi.xyz',
-    'https://pipedapi.moomoo.me'
+    'https://pipedapi.tokhmi.xyz'
   ];
 
   for (const instance of instances) {
     try {
       const response = await axios.get(`${instance}/streams/${videoId}`, {
-        timeout: 7000
+        timeout: 5000 // Reduced timeout
       });
 
       const data = response.data;
