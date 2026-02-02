@@ -1,4 +1,4 @@
-const ytdl = require('ytdl-core');
+const ytdl = require('@distube/ytdl-core');
 
 module.exports = async (req, res) => {
   // Enable CORS
@@ -51,7 +51,17 @@ module.exports = async (req, res) => {
 
 async function handleYouTube(url, res) {
   try {
-    const info = await ytdl.getInfo(url);
+    // Convert Shorts URL to regular format
+    url = url.replace('/shorts/', '/watch?v=');
+    
+    const info = await ytdl.getInfo(url, {
+      requestOptions: {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+        }
+      }
+    });
+    
     const formats = ytdl.filterFormats(info.formats, 'videoandaudio');
     const audioFormats = ytdl.filterFormats(info.formats, 'audioonly');
 
@@ -86,6 +96,7 @@ async function handleYouTube(url, res) {
       platform: 'youtube'
     });
   } catch (error) {
+    console.error('YouTube extraction error:', error);
     throw new Error('Failed to extract YouTube video: ' + error.message);
   }
 }

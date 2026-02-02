@@ -19,6 +19,9 @@ const API_URL = 'https://super-app-blue-pi.vercel.app/api/extract';
 export class MediaExtractor {
   async extractMediaInfo(url: string, platform: string): Promise<MediaData> {
     try {
+      console.log('Fetching from API:', API_URL);
+      console.log('URL to extract:', url);
+      
       const response = await fetch(API_URL, {
         method: 'POST',
         headers: {
@@ -27,15 +30,22 @@ export class MediaExtractor {
         body: JSON.stringify({ url }),
       });
 
+      console.log('Response status:', response.status);
+      console.log('Response ok:', response.ok);
+
       if (!response.ok) {
-        throw new Error('API request failed');
+        const errorText = await response.text();
+        console.error('API error response:', errorText);
+        throw new Error(`API request failed: ${response.status}`);
       }
 
       const data = await response.json();
+      console.log('API response data:', data);
       return data;
       
     } catch (error: any) {
       console.error('API extraction failed:', error);
+      console.error('Error details:', error.message);
       // Fallback to mock data
       return this.createMockData(url, platform);
     }
