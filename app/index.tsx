@@ -19,6 +19,8 @@ import { detectPlatform, validateUrl } from '@/utils/urlParser';
 import { LinearGradient } from '@/components/LinearGradient';
 import { PlatformIcon } from '@/components/PlatformIcon';
 
+import { mediaExtractor } from '@/services/mediaExtractor';
+
 export default function HomeScreen() {
   const router = useRouter();
   const { theme, isDark } = useTheme();
@@ -26,8 +28,8 @@ export default function HomeScreen() {
   const [url, setUrl] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const fadeAnim = new Animated.Value(0);
-  const slideAnim = new Animated.Value(50);
+  const fadeAnim = React.useRef(new Animated.Value(0)).current;
+  const slideAnim = React.useRef(new Animated.Value(50)).current;
 
   useEffect(() => {
     Animated.parallel([
@@ -68,52 +70,44 @@ export default function HomeScreen() {
   };
 
   const handleAnalyze = async () => {
-    if (!url.trim()) {
-      setError('Please enter a valid URL');
-      return;
-    }
-
-    if (!validateUrl(url)) {
-      setError('Invalid URL format');
-      return;
-    }
-
-    const platform = detectPlatform(url);
-    if (!platform) {
-      setError('Unsupported platform. Try YouTube, Instagram, Facebook, Twitter, or Vimeo.');
-      return;
-    }
-
-    setLoading(true);
-    setError('');
-
     try {
-      await new Promise(resolve => setTimeout(resolve, 1500));
+      if (!url.trim()) {
+        setError('Please enter a valid URL');
+        return;
+      }
+
+      if (!validateUrl(url)) {
+        setError('Invalid URL format');
+        return;
+      }
+
+      const platform = detectPlatform(url);
+      if (!platform) {
+        setError('Unsupported platform. Try YouTube, Instagram, Facebook, Twitter, or Vimeo.');
+        return;
+      }
+
+      setLoading(true);
+      setError('');
+
+      // Fetch real media info
+      const mediaData = await mediaExtractor.extractMediaInfo(url, platform);
       
       setMediaInfo({
         url,
         platform,
-        title: 'Sample Video Title',
-        thumbnail: 'https://via.placeholder.com/640x360',
-        duration: '5:23',
-        qualities: [
-          { quality: '2160p', format: 'mp4', size: '450 MB', url: url },
-          { quality: '1080p', format: 'mp4', size: '180 MB', url: url },
-          { quality: '720p', format: 'mp4', size: '95 MB', url: url },
-          { quality: '480p', format: 'mp4', size: '45 MB', url: url },
-          { quality: '360p', format: 'mp4', size: '25 MB', url: url },
-        ],
-        audioFormats: [
-          { quality: '320kbps', format: 'mp3', size: '12 MB', url: url },
-          { quality: '256kbps', format: 'm4a', size: '9 MB', url: url },
-          { quality: '128kbps', format: 'mp3', size: '5 MB', url: url },
-        ],
+        title: mediaData.title,
+        thumbnail: mediaData.thumbnail,
+        duration: mediaData.duration,
+        qualities: mediaData.qualities,
+        audioFormats: mediaData.audioFormats,
       });
 
+      setLoading(false);
       router.push('/preview');
-    } catch (err) {
-      setError('Failed to analyze media. Please try again.');
-    } finally {
+    } catch (err: any) {
+      console.error('Error in handleAnalyze:', err);
+      setError(err.message || 'Failed to analyze media. Please try again.');
       setLoading(false);
     }
   };

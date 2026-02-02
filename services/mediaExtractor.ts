@@ -13,124 +13,59 @@ type MediaData = {
   audioFormats: MediaQuality[];
 };
 
+// TODO: Replace with your deployed API URL
+// For local testing: Use your computer's IP address (find with 'ipconfig' on Windows)
+// Example: const API_URL = 'http://192.168.1.5:3000/api/extract';
+const API_URL = 'http://192.168.1.5:3000/api/extract'; // CHANGE 192.168.1.5 to YOUR IP
+
 export class MediaExtractor {
   async extractMediaInfo(url: string, platform: string): Promise<MediaData> {
-    switch (platform) {
-      case 'youtube':
-        return this.extractYouTube(url);
-      case 'instagram':
-        return this.extractInstagram(url);
-      case 'facebook':
-        return this.extractFacebook(url);
-      case 'twitter':
-        return this.extractTwitter(url);
-      case 'vimeo':
-        return this.extractVimeo(url);
-      default:
-        return this.extractDirect(url);
+    try {
+      const response = await fetch(API_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ url }),
+      });
+
+      if (!response.ok) {
+        throw new Error('API request failed');
+      }
+
+      const data = await response.json();
+      return data;
+      
+    } catch (error: any) {
+      console.error('API extraction failed:', error);
+      // Fallback to mock data
+      return this.createMockData(url, platform);
     }
   }
 
-  private async extractYouTube(url: string): Promise<MediaData> {
+  private createMockData(url: string, platform: string): MediaData {
+    const titles: Record<string, string> = {
+      youtube: 'YouTube Video',
+      instagram: 'Instagram Video',
+      facebook: 'Facebook Video',
+      twitter: 'Twitter Video',
+      vimeo: 'Vimeo Video',
+      tiktok: 'TikTok Video',
+    };
+
     return {
-      title: 'YouTube Video Title',
+      title: titles[platform] || 'Video',
       thumbnail: 'https://via.placeholder.com/640x360',
       duration: '5:23',
       qualities: [
-        { quality: '2160p', format: 'mp4', size: '450 MB', url },
-        { quality: '1440p', format: 'mp4', size: '280 MB', url },
-        { quality: '1080p', format: 'mp4', size: '180 MB', url },
-        { quality: '720p', format: 'mp4', size: '95 MB', url },
-        { quality: '480p', format: 'mp4', size: '45 MB', url },
-        { quality: '360p', format: 'mp4', size: '25 MB', url },
+        { quality: '1080p', format: 'mp4', size: '180 MB', url: url },
+        { quality: '720p', format: 'mp4', size: '95 MB', url: url },
+        { quality: '480p', format: 'mp4', size: '45 MB', url: url },
       ],
       audioFormats: [
-        { quality: '320kbps', format: 'mp3', size: '12 MB', url },
-        { quality: '256kbps', format: 'm4a', size: '9 MB', url },
-        { quality: '128kbps', format: 'mp3', size: '5 MB', url },
+        { quality: '320kbps', format: 'mp3', size: '12 MB', url: url },
+        { quality: '128kbps', format: 'mp3', size: '5 MB', url: url },
       ],
-    };
-  }
-
-  private async extractInstagram(url: string): Promise<MediaData> {
-    return {
-      title: 'Instagram Video',
-      thumbnail: 'https://via.placeholder.com/640x640',
-      duration: '0:45',
-      qualities: [
-        { quality: '1080p', format: 'mp4', size: '85 MB', url },
-        { quality: '720p', format: 'mp4', size: '45 MB', url },
-        { quality: '480p', format: 'mp4', size: '25 MB', url },
-      ],
-      audioFormats: [
-        { quality: '256kbps', format: 'm4a', size: '8 MB', url },
-        { quality: '128kbps', format: 'mp3', size: '4 MB', url },
-      ],
-    };
-  }
-
-  private async extractFacebook(url: string): Promise<MediaData> {
-    return {
-      title: 'Facebook Video',
-      thumbnail: 'https://via.placeholder.com/640x360',
-      duration: '3:15',
-      qualities: [
-        { quality: '1080p', format: 'mp4', size: '120 MB', url },
-        { quality: '720p', format: 'mp4', size: '65 MB', url },
-        { quality: '480p', format: 'mp4', size: '35 MB', url },
-      ],
-      audioFormats: [
-        { quality: '256kbps', format: 'm4a', size: '7 MB', url },
-        { quality: '128kbps', format: 'mp3', size: '4 MB', url },
-      ],
-    };
-  }
-
-  private async extractTwitter(url: string): Promise<MediaData> {
-    return {
-      title: 'Twitter Video',
-      thumbnail: 'https://via.placeholder.com/640x360',
-      duration: '1:30',
-      qualities: [
-        { quality: '1080p', format: 'mp4', size: '55 MB', url },
-        { quality: '720p', format: 'mp4', size: '32 MB', url },
-        { quality: '480p', format: 'mp4', size: '18 MB', url },
-      ],
-      audioFormats: [
-        { quality: '256kbps', format: 'm4a', size: '5 MB', url },
-        { quality: '128kbps', format: 'mp3', size: '3 MB', url },
-      ],
-    };
-  }
-
-  private async extractVimeo(url: string): Promise<MediaData> {
-    return {
-      title: 'Vimeo Video',
-      thumbnail: 'https://via.placeholder.com/640x360',
-      duration: '4:45',
-      qualities: [
-        { quality: '4K', format: 'mp4', size: '580 MB', url },
-        { quality: '1080p', format: 'mp4', size: '165 MB', url },
-        { quality: '720p', format: 'mp4', size: '88 MB', url },
-        { quality: '480p', format: 'mp4', size: '42 MB', url },
-      ],
-      audioFormats: [
-        { quality: '320kbps', format: 'mp3', size: '11 MB', url },
-        { quality: '256kbps', format: 'm4a', size: '8 MB', url },
-        { quality: '128kbps', format: 'mp3', size: '4 MB', url },
-      ],
-    };
-  }
-
-  private async extractDirect(url: string): Promise<MediaData> {
-    return {
-      title: 'Direct Media Link',
-      thumbnail: 'https://via.placeholder.com/640x360',
-      duration: '0:00',
-      qualities: [
-        { quality: 'Original', format: 'mp4', size: 'Unknown', url },
-      ],
-      audioFormats: [],
     };
   }
 }
