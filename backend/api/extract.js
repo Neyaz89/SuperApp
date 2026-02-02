@@ -24,10 +24,11 @@ module.exports = async (req, res) => {
     console.log('Extracting:', url, 'Platform:', platform);
 
     // Try extraction methods in order with platform-specific routing
+    // Invidious first for YouTube (most reliable with actual download URLs)
     const methods = [
-      { name: 'Cobalt', fn: extractWithCobalt, platforms: ['youtube', 'instagram', 'twitter', 'tiktok', 'facebook', 'vimeo'] },
       { name: 'Invidious', fn: extractWithInvidious, platforms: ['youtube'] },
       { name: 'PiPed', fn: extractWithPiped, platforms: ['youtube'] },
+      { name: 'Cobalt', fn: extractWithCobalt, platforms: ['youtube', 'instagram', 'twitter', 'tiktok', 'facebook', 'vimeo'] },
       { name: 'Y2Mate', fn: extractWithY2Mate, platforms: ['youtube', 'facebook', 'twitter'] },
       { name: 'SnapSave', fn: extractWithSnapSave, platforms: ['instagram', 'tiktok', 'facebook'] }
     ];

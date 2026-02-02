@@ -52,19 +52,57 @@ export default function DownloadScreen() {
         return;
       }
 
-      setStatus('Connecting to server...');
-      await simulateProgress(0, 15, 500);
+      if (!selectedQuality?.url) {
+        setStatus('No download URL available');
+        return;
+      }
+
+      setStatus('Starting download...');
+      setProgress(5);
+
+      const filename = `SuperApp_${Date.now()}.${selectedQuality.format}`;
+      const fileUri = `${FileSystem.documentDirectory}${filename}`;
 
       setStatus('Downloading...');
-      await simulateProgress(15, 95, 3000);
+
+      // Create download with progress tracking
+      const downloadResumable = FileSystem.createDownloadResumable(
+        selectedQuality.url,
+        fileUri,
+        {},
+        (downloadProgress) => {
+          const progressPercent = (downloadProgress.totalBytesWritten / downloadProgress.totalBytesExpectedToWrite) * 100;
+          setProgress(Math.min(progressPercent, 95));
+        }
+      );
+
+      const result = await downloadResumable.downloadAsync();
+
+      if (!result) {
+        throw new Error('Download failed');
+      }
 
       setStatus('Saving to gallery...');
-      await simulateProgress(95, 100, 500);
+      setProgress(97);
 
-      const fileUri = `${FileSystem.documentDirectory}download_${Date.now()}.${selectedQuality.format}`;
+      // Save to media library
+      const asset = await MediaLibrary.createAssetAsync(result.uri);
       
+      try {
+        await MediaLibrary.createAlbumAsync('SuperApp', asset, false);
+      } catch (e) {
+        // Album might already exist, try to get it
+        const album = await MediaLibrary.getAlbumAsync('SuperApp');
+        if (album) {
+          await MediaLibrary.addAssetsToAlbumAsync([asset], album, false);
+        }
+      }
+
+      setProgress(100);
+      setStatus('Download complete!');
+
       setDownloadedFile({
-        uri: fileUri,
+        uri: result.uri,
         type: selectedQuality.type,
         quality: selectedQuality.quality,
         format: selectedQuality.format,
@@ -73,30 +111,15 @@ export default function DownloadScreen() {
       setTimeout(() => {
         router.replace('/complete');
       }, 500);
-    } catch (error) {
-      setStatus('Download failed. Please try again.');
+    } catch (error: any) {
+      setStatus(`Download failed: ${error.message || 'Unknown error'}`);
       console.error('Download error:', error);
+      
+      // Retry option after 2 seconds
+      setTimeout(() => {
+        setStatus('Tap to retry or go back');
+      }, 2000);
     }
-  };
-
-  const simulateProgress = (start: number, end: number, duration: number): Promise<void> => {
-    return new Promise((resolve) => {
-      const steps = 20;
-      const increment = (end - start) / steps;
-      const stepDuration = duration / steps;
-      let current = start;
-
-      const interval = setInterval(() => {
-        current += increment;
-        if (current >= end) {
-          setProgress(end);
-          clearInterval(interval);
-          resolve();
-        } else {
-          setProgress(current);
-        }
-      }, stepDuration);
-    });
   };
 
   const progressWidth = progressAnim.interpolate({
