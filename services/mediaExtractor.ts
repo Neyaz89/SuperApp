@@ -13,10 +13,8 @@ type MediaData = {
   audioFormats: MediaQuality[];
 };
 
-// TODO: Replace with your deployed API URL
-// For local testing: Use your computer's IP address (find with 'ipconfig' on Windows)
-// Example: const API_URL = 'http://192.168.1.5:3000/api/extract';
-const API_URL = 'http://192.168.1.5:3000/api/extract'; // CHANGE 192.168.1.5 to YOUR IP
+// Replace with your Vercel deployment URL
+const API_URL = 'https://your-app.vercel.app/api/extract';
 
 export class MediaExtractor {
   async extractMediaInfo(url: string, platform: string): Promise<MediaData> {

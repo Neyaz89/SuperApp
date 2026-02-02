@@ -4,7 +4,6 @@ const ytdl = require('ytdl-core');
 const axios = require('axios');
 
 const app = express();
-const PORT = process.env.PORT || 3000;
 
 app.use(cors());
 app.use(express.json());
@@ -15,6 +14,13 @@ app.get('/', (req, res) => {
     status: 'ok', 
     message: 'SuperApp Video Downloader API',
     version: '1.0.0'
+  });
+});
+
+app.get('/api', (req, res) => {
+  res.json({ 
+    status: 'ok', 
+    message: 'SuperApp API - Use POST /api/extract with {url: "..."}' 
   });
 });
 
@@ -94,34 +100,18 @@ async function handleYouTube(url, res) {
   }
 }
 
-// Instagram handler (using public API)
+// Instagram handler
 async function handleInstagram(url, res) {
-  try {
-    // Use Instagram's public API or scraping
-    const response = await axios.get(`https://www.instagram.com/p/${extractInstagramId(url)}/?__a=1&__d=dis`);
-    const data = response.data;
-
-    res.json({
-      title: 'Instagram Video',
-      thumbnail: data.graphql?.shortcode_media?.display_url || 'https://via.placeholder.com/640x640',
-      duration: '0:00',
-      qualities: [
-        { quality: '720p', format: 'mp4', size: 'Unknown', url: data.graphql?.shortcode_media?.video_url || url }
-      ],
-      audioFormats: [],
-      platform: 'instagram'
-    });
-  } catch (error) {
-    // Fallback
-    res.json({
-      title: 'Instagram Video',
-      thumbnail: 'https://via.placeholder.com/640x640',
-      duration: '0:00',
-      qualities: [{ quality: '720p', format: 'mp4', size: 'Unknown', url }],
-      audioFormats: [],
-      platform: 'instagram'
-    });
-  }
+  res.json({
+    title: 'Instagram Video',
+    thumbnail: 'https://via.placeholder.com/640x640',
+    duration: '0:00',
+    qualities: [
+      { quality: '720p', format: 'mp4', size: 'Unknown', url }
+    ],
+    audioFormats: [],
+    platform: 'instagram'
+  });
 }
 
 // Facebook handler
@@ -177,11 +167,6 @@ function detectPlatform(url) {
   return null;
 }
 
-function extractInstagramId(url) {
-  const match = url.match(/\/p\/([^\/]+)/);
-  return match ? match[1] : '';
-}
-
 function formatBytes(bytes) {
   const mb = bytes / (1024 * 1024);
   return mb.toFixed(0) + ' MB';
@@ -193,6 +178,13 @@ function formatDuration(seconds) {
   return `${mins}:${secs.toString().padStart(2, '0')}`;
 }
 
-app.listen(PORT, () => {
-  console.log(`🚀 SuperApp API running on port ${PORT}`);
-});
+// For Vercel serverless
+module.exports = app;
+
+// For local development
+if (require.main === module) {
+  const PORT = process.env.PORT || 3000;
+  app.listen(PORT, () => {
+    console.log(`🚀 SuperApp API running on port ${PORT}`);
+  });
+}
