@@ -13,8 +13,8 @@ type MediaData = {
   audioFormats: MediaQuality[];
 };
 
-// Replace with your Vercel deployment URL
-const API_URL = 'https://your-app.vercel.app/api/extract';
+// Your Vercel API URL
+const API_URL = 'https://super-app-blue-pi.vercel.app/api/extract';
 
 export class MediaExtractor {
   async extractMediaInfo(url: string, platform: string): Promise<MediaData> {
