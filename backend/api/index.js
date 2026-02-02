@@ -1,11 +1,20 @@
-module.exports = (req, res) => {
+module.exports = async (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Content-Type', 'application/json');
+  
   res.json({ 
     status: 'ok', 
     message: 'SuperApp Video Downloader API',
-    version: '1.0.0',
+    version: '2.0.0',
     endpoints: {
-      extract: '/api/extract (POST)'
+      extract: 'POST /api/extract - Extract video info from URL'
+    },
+    usage: {
+      method: 'POST',
+      url: '/api/extract',
+      body: {
+        url: 'https://youtube.com/watch?v=...'
+      }
     }
   });
 };

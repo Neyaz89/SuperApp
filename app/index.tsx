@@ -90,8 +90,12 @@ export default function HomeScreen() {
       setLoading(true);
       setError('');
 
+      console.log('Starting extraction for:', url);
+      
       // Fetch real media info
       const mediaData = await mediaExtractor.extractMediaInfo(url, platform);
+      
+      console.log('Extraction successful:', mediaData.title);
       
       setMediaInfo({
         url,
@@ -107,7 +111,19 @@ export default function HomeScreen() {
       router.push('/preview');
     } catch (err: any) {
       console.error('Error in handleAnalyze:', err);
-      setError(err.message || 'Failed to analyze media. Please try again.');
+      let errorMessage = 'Failed to analyze media. ';
+      
+      if (err.message?.includes('Network request failed')) {
+        errorMessage += 'Check your internet connection.';
+      } else if (err.message?.includes('API request failed')) {
+        errorMessage += 'Server is busy, please try again.';
+      } else if (err.message?.includes('timeout')) {
+        errorMessage += 'Request timed out, please try again.';
+      } else {
+        errorMessage += err.message || 'Please try again.';
+      }
+      
+      setError(errorMessage);
       setLoading(false);
     }
   };

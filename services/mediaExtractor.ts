@@ -18,40 +18,86 @@ const API_URL = 'https://super-app-blue-pi.vercel.app/api/extract';
 
 export class MediaExtractor {
   async extractMediaInfo(url: string, platform: string): Promise<MediaData> {
-    try {
-      console.log('Fetching from API:', API_URL);
-      console.log('URL to extract:', url);
-      
-      const response = await fetch(API_URL, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ url }),
-      });
+    console.log('=== MediaExtractor: Starting extraction ===');
+    console.log('URL:', url);
+    console.log('Platform:', platform);
+    console.log('API URL:', API_URL);
 
-      console.log('Response status:', response.status);
-      console.log('Response ok:', response.ok);
+    // Try API extraction with retries
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      try {
+        console.log(`Attempt ${attempt}/3: Calling API...`);
+        
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 second timeout
 
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('API error response:', errorText);
-        throw new Error(`API request failed: ${response.status}`);
+        const response = await fetch(API_URL, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ url }),
+          signal: controller.signal,
+        });
+
+        clearTimeout(timeoutId);
+
+        console.log('Response status:', response.status);
+        console.log('Response ok:', response.ok);
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error('API error response:', errorText);
+          
+          if (attempt < 3) {
+            console.log('Retrying...');
+            await new Promise(resolve => setTimeout(resolve, 1000 * attempt)); // Exponential backoff
+            continue;
+          }
+          
+          throw new Error(`API returned ${response.status}`);
+        }
+
+        const data = await response.json();
+        console.log('API response received:', {
+          title: data.title,
+          qualityCount: data.qualities?.length,
+          audioCount: data.audioFormats?.length
+        });
+
+        // Validate response
+        if (!data.qualities || data.qualities.length === 0) {
+          console.warn('No qualities in response, using fallback');
+          return this.createMockData(url, platform);
+        }
+
+        console.log('=== Extraction successful ===');
+        return data;
+        
+      } catch (error: any) {
+        console.error(`Attempt ${attempt} failed:`, error.message);
+        
+        if (error.name === 'AbortError') {
+          console.error('Request timed out');
+        }
+        
+        if (attempt === 3) {
+          console.log('All attempts failed, using fallback data');
+          return this.createMockData(url, platform);
+        }
+        
+        // Wait before retry
+        await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
       }
-
-      const data = await response.json();
-      console.log('API response data:', data);
-      return data;
-      
-    } catch (error: any) {
-      console.error('API extraction failed:', error);
-      console.error('Error details:', error.message);
-      // Fallback to mock data
-      return this.createMockData(url, platform);
     }
+
+    // Fallback
+    return this.createMockData(url, platform);
   }
 
   private createMockData(url: string, platform: string): MediaData {
+    console.log('Creating fallback data for platform:', platform);
+    
     const titles: Record<string, string> = {
       youtube: 'YouTube Video',
       instagram: 'Instagram Video',
