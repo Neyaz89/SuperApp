@@ -10,8 +10,9 @@ import { useRouter } from 'expo-router';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useDownload } from '@/contexts/DownloadContext';
 import { adManager } from '@/services/adManager';
-import * as FileSystem from 'expo-file-system';
+import { downloadAsync } from 'expo-file-system/legacy';
 import * as MediaLibrary from 'expo-media-library';
+import * as FileSystem from 'expo-file-system';
 
 export default function DownloadScreen() {
   const router = useRouter();
@@ -60,33 +61,36 @@ export default function DownloadScreen() {
       setStatus('Starting download...');
       setProgress(5);
 
+      // Check if documentDirectory is available
+      if (!FileSystem.documentDirectory) {
+        throw new Error('File system not available. Use a development build.');
+      }
+
       const filename = `SuperApp_${Date.now()}.${selectedQuality.format}`;
-      const fileUri = `${FileSystem.documentDirectory}${filename}`;
+      const fileUri = FileSystem.documentDirectory + filename;
+
+      console.log('Downloading to:', fileUri);
+      console.log('From URL:', selectedQuality.url);
 
       setStatus('Downloading...');
 
-      // Create download with progress tracking
-      const downloadResumable = FileSystem.createDownloadResumable(
+      // Use legacy API to avoid deprecation error
+      const downloadResult = await downloadAsync(
         selectedQuality.url,
-        fileUri,
-        {},
-        (downloadProgress) => {
-          const progressPercent = (downloadProgress.totalBytesWritten / downloadProgress.totalBytesExpectedToWrite) * 100;
-          setProgress(Math.min(progressPercent, 95));
-        }
+        fileUri
       );
 
-      const result = await downloadResumable.downloadAsync();
+      console.log('Download result:', downloadResult);
 
-      if (!result) {
-        throw new Error('Download failed');
+      if (downloadResult.status !== 200) {
+        throw new Error(`Download failed with status ${downloadResult.status}`);
       }
 
+      setProgress(95);
       setStatus('Saving to gallery...');
-      setProgress(97);
 
       // Save to media library
-      const asset = await MediaLibrary.createAssetAsync(result.uri);
+      const asset = await MediaLibrary.createAssetAsync(downloadResult.uri);
       
       try {
         await MediaLibrary.createAlbumAsync('SuperApp', asset, false);
@@ -102,7 +106,7 @@ export default function DownloadScreen() {
       setStatus('Download complete!');
 
       setDownloadedFile({
-        uri: result.uri,
+        uri: downloadResult.uri,
         type: selectedQuality.type,
         quality: selectedQuality.quality,
         format: selectedQuality.format,
@@ -112,8 +116,8 @@ export default function DownloadScreen() {
         router.replace('/complete');
       }, 500);
     } catch (error: any) {
+      console.error('Download error details:', error);
       setStatus(`Download failed: ${error.message || 'Unknown error'}`);
-      console.error('Download error:', error);
       
       // Retry option after 2 seconds
       setTimeout(() => {

@@ -1,3 +1,4 @@
+import { downloadAsync } from 'expo-file-system/legacy';
 import * as FileSystem from 'expo-file-system';
 import * as MediaLibrary from 'expo-media-library';
 
@@ -8,8 +9,6 @@ export type DownloadProgress = {
 };
 
 export class MediaDownloader {
-  private downloadResumable: FileSystem.DownloadResumable | null = null;
-
   async downloadMedia(
     url: string,
     filename: string,
@@ -23,55 +22,42 @@ export class MediaDownloader {
 
       const fileUri = `${FileSystem.documentDirectory}${filename}`;
 
-      const callback = (downloadProgress: FileSystem.DownloadProgressData) => {
-        const progress = downloadProgress.totalBytesWritten / downloadProgress.totalBytesExpectedToWrite;
-        onProgress?.({
-          progress: progress * 100,
-          totalBytes: downloadProgress.totalBytesExpectedToWrite,
-          downloadedBytes: downloadProgress.totalBytesWritten,
-        });
-      };
-
-      this.downloadResumable = FileSystem.createDownloadResumable(
+      // Use legacy API
+      const downloadResult = await downloadAsync(
         url,
         fileUri,
-        {},
-        callback
+        {
+          progressCallback: (downloadProgress) => {
+            const progress = downloadProgress.totalBytesWritten / downloadProgress.totalBytesExpectedToWrite;
+            onProgress?.({
+              progress: progress * 100,
+              totalBytes: downloadProgress.totalBytesExpectedToWrite,
+              downloadedBytes: downloadProgress.totalBytesWritten,
+            });
+          }
+        }
       );
 
-      const result = await this.downloadResumable.downloadAsync();
-      
-      if (!result) {
-        throw new Error('Download failed');
+      if (downloadResult.status !== 200) {
+        throw new Error(`Download failed with status ${downloadResult.status}`);
       }
 
-      const asset = await MediaLibrary.createAssetAsync(result.uri);
-      await MediaLibrary.createAlbumAsync('SuperApp', asset, false);
+      const asset = await MediaLibrary.createAssetAsync(downloadResult.uri);
+      
+      try {
+        await MediaLibrary.createAlbumAsync('SuperApp', asset, false);
+      } catch (e) {
+        // Album might already exist
+        const album = await MediaLibrary.getAlbumAsync('SuperApp');
+        if (album) {
+          await MediaLibrary.addAssetsToAlbumAsync([asset], album, false);
+        }
+      }
 
-      return result.uri;
+      return downloadResult.uri;
     } catch (error) {
       console.error('Download error:', error);
       throw error;
-    }
-  }
-
-  async pauseDownload(): Promise<FileSystem.DownloadPauseState | null> {
-    if (this.downloadResumable) {
-      return await this.downloadResumable.pauseAsync();
-    }
-    return null;
-  }
-
-  async resumeDownload(): Promise<void> {
-    if (this.downloadResumable) {
-      await this.downloadResumable.resumeAsync();
-    }
-  }
-
-  async cancelDownload(): Promise<void> {
-    if (this.downloadResumable) {
-      await this.downloadResumable.cancelAsync();
-      this.downloadResumable = null;
     }
   }
 }
