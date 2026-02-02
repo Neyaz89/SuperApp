@@ -83,7 +83,7 @@ export default function HomeScreen() {
 
       const platform = detectPlatform(url);
       if (!platform) {
-        setError('Unsupported platform. Try YouTube, Instagram, Facebook, Twitter, or Vimeo.');
+        setError('Unsupported platform. We support YouTube, Instagram, Facebook, Twitter, TikTok, Vimeo, Reddit, Twitch, Dailymotion, Terabox & more.');
         return;
       }
 
@@ -178,7 +178,7 @@ export default function HomeScreen() {
 
             <View style={styles.platformsContainer}>
               <Text style={[styles.platformsLabel, { color: theme.textSecondary }]}>
-                Supported platforms:
+                Supported: YouTube, Instagram, Facebook, Twitter, TikTok, Vimeo, Reddit, Twitch, Dailymotion, Terabox & more
               </Text>
               <View style={styles.platformIcons}>
                 <PlatformIcon platform="youtube" size={32} />
