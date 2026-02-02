@@ -1,0 +1,53 @@
+{
+  "expo": {
+    "name": "SuperApp",
+    "slug": "superapp",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "automatic",
+    "scheme": "superapp",
+    "splash": {
+      "resizeMode": "contain",
+      "backgroundColor": "#000000"
+    },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.superapp.media"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#000000"
+      },
+      "permissions": [
+        "android.permission.INTERNET",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE",
+        "android.permission.READ_MEDIA_VIDEO",
+        "android.permission.READ_MEDIA_AUDIO",
+        "android.permission.READ_MEDIA_VISUAL_USER_SELECTED",
+        "android.permission.READ_MEDIA_IMAGES"
+      ],
+      "package": "com.superapp.media"
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-media-library",
+        {
+          "photosPermission": "Allow SuperApp to save downloaded media.",
+          "savePhotosPermission": "Allow SuperApp to save media to your gallery."
+        }
+      ]
+    ],
+    "sdkVersion": "54.0.0",
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "ec4e9340-3d51-4c13-b7a8-6a87eaeeb60b"
+      }
+    }
+  }
+}
