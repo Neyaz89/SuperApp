@@ -23,6 +23,17 @@ export default function RootLayout() {
           <Stack.Screen name="download" />
           <Stack.Screen name="complete" />
           <Stack.Screen name="settings" />
+          <Stack.Screen name="games" />
+          <Stack.Screen name="games/tap-reflex" />
+          <Stack.Screen name="games/endless-runner" />
+          <Stack.Screen name="games/game-2048" />
+          <Stack.Screen name="games/memory-match" />
+          <Stack.Screen name="games/snake" />
+          <Stack.Screen name="games/tic-tac-toe" />
+          <Stack.Screen name="games/bubble-shooter" />
+          <Stack.Screen name="games/quiz" />
+          <Stack.Screen name="games/color-switch" />
+          <Stack.Screen name="games/stack-blocks" />
         </Stack>
       </DownloadProvider>
     </ThemeProvider>

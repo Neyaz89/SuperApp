@@ -213,6 +213,13 @@ export default function HomeScreen() {
           >
             <Text style={[styles.settingsText, { color: theme.textSecondary }]}>Settings</Text>
           </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.gamesButton, { backgroundColor: theme.primary }]}
+            onPress={() => router.push('/games')}
+          >
+            <Text style={styles.gamesButtonText}>🎮 Play Games</Text>
+          </TouchableOpacity>
         </Animated.View>
       </KeyboardAvoidingView>
     </View>
@@ -321,5 +328,22 @@ const styles = StyleSheet.create({
   settingsText: {
     fontSize: 16,
     fontWeight: '500',
+  },
+  gamesButton: {
+    marginTop: 16,
+    height: 56,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 12,
+    elevation: 5,
+  },
+  gamesButtonText: {
+    color: '#FFFFFF',
+    fontSize: 18,
+    fontWeight: '700',
   },
 });
