@@ -69,21 +69,36 @@ async function extractWithYtDlp(url) {
   try {
     const proxy = getNextProxy();
     
+    // Check if yt-dlp is installed
+    try {
+      await execAsync('yt-dlp --version', { timeout: 5000 });
+    } catch (e) {
+      console.error('yt-dlp not installed, skipping');
+      throw new Error('yt-dlp not available');
+    }
+    
     // yt-dlp command with proxy and optimal settings
-    const command = `yt-dlp --proxy "${proxy}" --no-check-certificate --skip-download --print-json --format "best[height<=720]" "${url}"`;
+    const command = `yt-dlp --proxy "${proxy}" --no-check-certificate --skip-download --dump-json --format "best[height<=720]" "${url}"`;
     
     console.log('Running yt-dlp with proxy:', proxy);
     
     const { stdout, stderr } = await execAsync(command, {
-      timeout: 15000,
-      maxBuffer: 10 * 1024 * 1024 // 10MB buffer
+      timeout: 20000,
+      maxBuffer: 10 * 1024 * 1024
     });
 
-    if (stderr && !stdout) {
-      throw new Error('yt-dlp failed: ' + stderr);
+    if (stderr && stderr.includes('ERROR')) {
+      console.error('yt-dlp stderr:', stderr);
+      throw new Error('yt-dlp extraction failed');
+    }
+
+    if (!stdout) {
+      throw new Error('No output from yt-dlp');
     }
 
     const data = JSON.parse(stdout);
+    
+    console.log('yt-dlp success! Title:', data.title);
     
     // Extract formats
     const videoFormats = (data.formats || [])
