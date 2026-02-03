@@ -67,8 +67,6 @@ module.exports = async (req, res) => {
 // Method 1: yt-dlp with proxy rotation (Most powerful)
 async function extractWithYtDlp(url) {
   try {
-    const proxy = getNextProxy();
-    
     // Check if yt-dlp is installed
     try {
       await execAsync('yt-dlp --version', { timeout: 5000 });
@@ -77,8 +75,29 @@ async function extractWithYtDlp(url) {
       throw new Error('yt-dlp not available');
     }
     
-    // yt-dlp command with proxy and optimal settings
-    const command = `yt-dlp --proxy "${proxy}" --no-check-certificate --skip-download --dump-json --format "best[height<=720]" "${url}"`;
+    // Try without proxy first (faster)
+    let command = `yt-dlp --no-check-certificate --skip-download --dump-json --format "best[height<=720]" "${url}"`;
+    
+    console.log('Running yt-dlp without proxy first...');
+    
+    try {
+      const { stdout, stderr } = await execAsync(command, {
+        timeout: 20000,
+        maxBuffer: 10 * 1024 * 1024
+      });
+
+      if (stdout && !stderr.includes('ERROR')) {
+        const data = JSON.parse(stdout);
+        console.log('yt-dlp success without proxy! Title:', data.title);
+        return formatYtDlpResponse(data, url);
+      }
+    } catch (e) {
+      console.log('Direct extraction failed, trying with proxy...');
+    }
+
+    // If direct fails, try with proxy
+    const proxy = getNextProxy();
+    command = `yt-dlp --proxy "${proxy}" --no-check-certificate --skip-download --dump-json --format "best[height<=720]" "${url}"`;
     
     console.log('Running yt-dlp with proxy:', proxy);
     
@@ -97,49 +116,52 @@ async function extractWithYtDlp(url) {
     }
 
     const data = JSON.parse(stdout);
+    console.log('yt-dlp success with proxy! Title:', data.title);
     
-    console.log('yt-dlp success! Title:', data.title);
-    
-    // Extract formats
-    const videoFormats = (data.formats || [])
-      .filter(f => f.vcodec !== 'none' && f.acodec !== 'none' && f.url)
-      .sort((a, b) => (b.height || 0) - (a.height || 0))
-      .slice(0, 5);
-
-    const audioFormats = (data.formats || [])
-      .filter(f => f.vcodec === 'none' && f.acodec !== 'none' && f.url)
-      .sort((a, b) => (b.abr || 0) - (a.abr || 0))
-      .slice(0, 3);
-
-    const qualities = videoFormats.map(f => ({
-      quality: `${f.height}p`,
-      format: f.ext || 'mp4',
-      size: f.filesize ? formatBytes(f.filesize) : 'Unknown',
-      url: f.url
-    }));
-
-    const audioQualities = audioFormats.map(f => ({
-      quality: `${Math.round(f.abr || 128)}kbps`,
-      format: f.ext || 'mp3',
-      size: f.filesize ? formatBytes(f.filesize) : 'Unknown',
-      url: f.url
-    }));
-
-    return {
-      title: data.title || 'Video',
-      thumbnail: data.thumbnail || data.thumbnails?.[0]?.url || 'https://via.placeholder.com/640x360',
-      duration: data.duration ? formatDuration(data.duration) : '0:00',
-      qualities: qualities.length > 0 ? qualities : [
-        { quality: '720p', format: 'mp4', size: 'Unknown', url: data.url }
-      ],
-      audioFormats: audioQualities,
-      platform: detectPlatform(url)
-    };
+    return formatYtDlpResponse(data, url);
 
   } catch (error) {
     console.error('yt-dlp failed:', error.message);
     throw error;
   }
+}
+
+function formatYtDlpResponse(data, url) {
+  // Extract formats
+  const videoFormats = (data.formats || [])
+    .filter(f => f.vcodec !== 'none' && f.acodec !== 'none' && f.url)
+    .sort((a, b) => (b.height || 0) - (a.height || 0))
+    .slice(0, 5);
+
+  const audioFormats = (data.formats || [])
+    .filter(f => f.vcodec === 'none' && f.acodec !== 'none' && f.url)
+    .sort((a, b) => (b.abr || 0) - (a.abr || 0))
+    .slice(0, 3);
+
+  const qualities = videoFormats.map(f => ({
+    quality: `${f.height}p`,
+    format: f.ext || 'mp4',
+    size: f.filesize ? formatBytes(f.filesize) : 'Unknown',
+    url: f.url
+  }));
+
+  const audioQualities = audioFormats.map(f => ({
+    quality: `${Math.round(f.abr || 128)}kbps`,
+    format: f.ext || 'mp3',
+    size: f.filesize ? formatBytes(f.filesize) : 'Unknown',
+    url: f.url
+  }));
+
+  return {
+    title: data.title || 'Video',
+    thumbnail: data.thumbnail || data.thumbnails?.[0]?.url || 'https://via.placeholder.com/640x360',
+    duration: data.duration ? formatDuration(data.duration) : '0:00',
+    qualities: qualities.length > 0 ? qualities : [
+      { quality: '720p', format: 'mp4', size: 'Unknown', url: data.url }
+    ],
+    audioFormats: audioQualities,
+    platform: detectPlatform(url)
+  };
 }
 
 // Fallback: Multiple API methods
