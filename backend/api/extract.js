@@ -60,7 +60,22 @@ module.exports = async (req, res) => {
 // YouTube extraction using ytdl-core
 async function extractYouTube(url) {
   try {
-    const info = await ytdl.getInfo(url);
+    // Use agent with cookies to bypass bot detection
+    const agent = ytdl.createAgent(undefined, {
+      localAddress: undefined
+    });
+
+    const info = await ytdl.getInfo(url, {
+      agent,
+      requestOptions: {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+          'Accept-Language': 'en-US,en;q=0.9',
+          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        }
+      }
+    });
+    
     const videoFormats = ytdl.filterFormats(info.formats, 'videoandaudio');
     const audioFormats = ytdl.filterFormats(info.formats, 'audioonly');
 
@@ -100,8 +115,9 @@ async function extractYouTube(url) {
       platform: 'youtube'
     };
   } catch (error) {
-    console.error('YouTube extraction failed:', error);
-    throw error;
+    console.error('YouTube extraction failed:', error.message);
+    // Fallback to Cobalt if ytdl fails
+    return await extractWithCobalt(url, 'youtube');
   }
 }
 
