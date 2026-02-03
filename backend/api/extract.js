@@ -1,4 +1,3 @@
-const ytdl = require('@distube/ytdl-core');
 const axios = require('axios');
 
 module.exports = async (req, res) => {
@@ -26,27 +25,27 @@ module.exports = async (req, res) => {
 
     let result;
     
-    switch (platform) {
-      case 'youtube':
-        result = await extractYouTube(url);
-        break;
-      case 'instagram':
-        result = await extractInstagram(url);
-        break;
-      case 'facebook':
-        result = await extractFacebook(url);
-        break;
-      case 'twitter':
-        result = await extractTwitter(url);
-        break;
-      case 'tiktok':
-        result = await extractTikTok(url);
-        break;
-      default:
-        result = await extractGeneric(url, platform);
+    // Try multiple extraction services in order
+    const extractors = [
+      { name: 'Cobalt', fn: () => extractWithCobalt(url) },
+      { name: 'AllTube', fn: () => extractWithAllTube(url) },
+      { name: 'Y2Mate', fn: () => extractWithY2Mate(url) },
+    ];
+
+    for (const extractor of extractors) {
+      try {
+        console.log(`Trying ${extractor.name}...`);
+        result = await extractor.fn();
+        if (result && result.qualities && result.qualities.length > 0) {
+          console.log(`${extractor.name} succeeded!`);
+          return res.json(result);
+        }
+      } catch (e) {
+        console.log(`${extractor.name} failed:`, e.message);
+      }
     }
 
-    return res.json(result);
+    throw new Error('All extraction methods failed');
 
   } catch (error) {
     console.error('Extraction error:', error);
@@ -57,302 +56,155 @@ module.exports = async (req, res) => {
   }
 };
 
-// YouTube extraction using ytdl-core
-async function extractYouTube(url) {
-  try {
-    // Use agent with cookies to bypass bot detection
-    const agent = ytdl.createAgent(undefined, {
-      localAddress: undefined
-    });
+// Method 1: Cobalt API
+async function extractWithCobalt(url) {
+  const response = await axios.post('https://api.cobalt.tools/api/json', {
+    url: url,
+    vCodec: 'h264',
+    vQuality: '1080',
+    aFormat: 'mp3',
+    filenamePattern: 'basic',
+    downloadMode: 'auto'
+  }, {
+    headers: {
+      'Accept': 'application/json',
+      'Content-Type': 'application/json'
+    },
+    timeout: 10000
+  });
 
-    const info = await ytdl.getInfo(url, {
-      agent,
-      requestOptions: {
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-          'Accept-Language': 'en-US,en;q=0.9',
-          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-        }
-      }
-    });
-    
-    const videoFormats = ytdl.filterFormats(info.formats, 'videoandaudio');
-    const audioFormats = ytdl.filterFormats(info.formats, 'audioonly');
-
-    const qualities = videoFormats
-      .filter(f => f.hasVideo && f.hasAudio)
-      .sort((a, b) => (b.height || 0) - (a.height || 0))
-      .slice(0, 5)
-      .map(format => ({
-        quality: `${format.height}p`,
-        format: format.container || 'mp4',
-        size: format.contentLength ? formatBytes(parseInt(format.contentLength)) : 'Unknown',
-        url: format.url,
-        itag: format.itag
-      }));
-
-    const audioQualities = audioFormats
-      .sort((a, b) => (b.audioBitrate || 0) - (a.audioBitrate || 0))
-      .slice(0, 3)
-      .map(format => ({
-        quality: `${format.audioBitrate}kbps`,
-        format: 'mp3',
-        size: format.contentLength ? formatBytes(parseInt(format.contentLength)) : 'Unknown',
-        url: format.url,
-        itag: format.itag
-      }));
-
-    return {
-      title: info.videoDetails.title,
-      thumbnail: info.videoDetails.thumbnails[info.videoDetails.thumbnails.length - 1].url,
-      duration: formatDuration(parseInt(info.videoDetails.lengthSeconds)),
-      qualities: qualities.length > 0 ? qualities : [
-        { quality: '720p', format: 'mp4', size: 'Unknown', url: videoFormats[0]?.url || url }
-      ],
-      audioFormats: audioQualities.length > 0 ? audioQualities : [
-        { quality: '128kbps', format: 'mp3', size: 'Unknown', url: audioFormats[0]?.url || url }
-      ],
-      platform: 'youtube'
-    };
-  } catch (error) {
-    console.error('YouTube extraction failed:', error.message);
-    // Fallback to Cobalt if ytdl fails
-    return await extractWithCobalt(url, 'youtube');
+  const data = response.data;
+  
+  if (data.status === 'error' || data.status === 'rate-limit') {
+    throw new Error(data.text || 'Cobalt failed');
   }
+
+  const videoUrl = data.url;
+  const audioUrl = data.audio;
+  
+  if (!videoUrl) {
+    throw new Error('No video URL from Cobalt');
+  }
+
+  return {
+    title: 'Video',
+    thumbnail: data.thumb || 'https://via.placeholder.com/640x360',
+    duration: '0:00',
+    qualities: [
+      { quality: '1080p', format: 'mp4', size: 'Unknown', url: videoUrl },
+      { quality: '720p', format: 'mp4', size: 'Unknown', url: videoUrl },
+      { quality: '480p', format: 'mp4', size: 'Unknown', url: videoUrl }
+    ],
+    audioFormats: audioUrl ? [
+      { quality: '128kbps', format: 'mp3', size: 'Unknown', url: audioUrl }
+    ] : [],
+    platform: detectPlatform(url)
+  };
 }
 
-// Instagram extraction
-async function extractInstagram(url) {
-  try {
-    // Method 1: Direct API approach
-    const postId = url.match(/\/p\/([^\/\?]+)/)?.[1] || url.match(/\/reel\/([^\/\?]+)/)?.[1];
-    
-    if (!postId) {
-      throw new Error('Invalid Instagram URL');
-    }
+// Method 2: AllTube Download API
+async function extractWithAllTube(url) {
+  const response = await axios.get('https://api.alltubedownload.org/api/info', {
+    params: { url },
+    timeout: 10000
+  });
 
-    const apiUrl = `https://www.instagram.com/p/${postId}/?__a=1&__d=dis`;
-    
-    const response = await axios.get(apiUrl, {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-        'Accept': '*/*',
-        'Accept-Language': 'en-US,en;q=0.9',
-      },
-      timeout: 10000
-    });
-
-    const data = response.data;
-    const media = data.items?.[0] || data.graphql?.shortcode_media;
-
-    if (!media) {
-      throw new Error('Could not extract Instagram media');
-    }
-
-    const videoUrl = media.video_url || media.video_versions?.[0]?.url;
-    const imageUrl = media.display_url || media.image_versions2?.candidates?.[0]?.url;
-    const isVideo = !!videoUrl;
-
-    return {
-      title: media.caption?.text?.substring(0, 100) || 'Instagram Post',
-      thumbnail: media.thumbnail_url || imageUrl || 'https://via.placeholder.com/640x360',
-      duration: isVideo ? formatDuration(media.video_duration || 0) : '0:00',
-      qualities: isVideo ? [
-        { quality: '720p', format: 'mp4', size: 'Unknown', url: videoUrl }
-      ] : [
-        { quality: 'Original', format: 'jpg', size: 'Unknown', url: imageUrl }
-      ],
-      audioFormats: [],
-      platform: 'instagram'
-    };
-  } catch (error) {
-    console.error('Instagram extraction failed:', error);
-    // Fallback to Cobalt
-    return await extractWithCobalt(url, 'instagram');
+  const data = response.data;
+  
+  if (!data || !data.formats || data.formats.length === 0) {
+    throw new Error('No formats from AllTube');
   }
+
+  const videoFormats = data.formats
+    .filter(f => f.vcodec !== 'none' && f.acodec !== 'none')
+    .sort((a, b) => (b.height || 0) - (a.height || 0))
+    .slice(0, 5);
+
+  const audioFormats = data.formats
+    .filter(f => f.vcodec === 'none' && f.acodec !== 'none')
+    .sort((a, b) => (b.abr || 0) - (a.abr || 0))
+    .slice(0, 3);
+
+  const qualities = videoFormats.map(f => ({
+    quality: `${f.height}p`,
+    format: f.ext || 'mp4',
+    size: f.filesize ? formatBytes(f.filesize) : 'Unknown',
+    url: f.url
+  }));
+
+  const audioQualities = audioFormats.map(f => ({
+    quality: `${Math.round(f.abr || 128)}kbps`,
+    format: f.ext || 'mp3',
+    size: f.filesize ? formatBytes(f.filesize) : 'Unknown',
+    url: f.url
+  }));
+
+  return {
+    title: data.title || 'Video',
+    thumbnail: data.thumbnail || 'https://via.placeholder.com/640x360',
+    duration: data.duration ? formatDuration(data.duration) : '0:00',
+    qualities: qualities.length > 0 ? qualities : [
+      { quality: '720p', format: 'mp4', size: 'Unknown', url: videoFormats[0]?.url }
+    ],
+    audioFormats: audioQualities.length > 0 ? audioQualities : [],
+    platform: detectPlatform(url)
+  };
 }
 
-// Facebook extraction
-async function extractFacebook(url) {
-  try {
-    const response = await axios.get(url, {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-      },
-      timeout: 10000
-    });
+// Method 3: Y2Mate API
+async function extractWithY2Mate(url) {
+  // First request to get video info
+  const infoResponse = await axios.post('https://www.y2mate.com/mates/analyzeV2/ajax', 
+    new URLSearchParams({
+      k_query: url,
+      k_page: 'home',
+      hl: 'en',
+      q_auto: '0'
+    }), {
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded',
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+    },
+    timeout: 10000
+  });
 
-    const html = response.data;
-    
-    // Extract HD and SD video URLs from Facebook's HTML
-    const hdMatch = html.match(/"playable_url_quality_hd":"([^"]+)"/);
-    const sdMatch = html.match(/"playable_url":"([^"]+)"/);
-    
-    const hdUrl = hdMatch ? hdMatch[1].replace(/\\u0025/g, '%').replace(/\\\//g, '/') : null;
-    const sdUrl = sdMatch ? sdMatch[1].replace(/\\u0025/g, '%').replace(/\\\//g, '/') : null;
-
-    const titleMatch = html.match(/<title>([^<]+)<\/title>/);
-    const title = titleMatch ? titleMatch[1] : 'Facebook Video';
-
-    const qualities = [];
-    if (hdUrl) qualities.push({ quality: '720p', format: 'mp4', size: 'Unknown', url: hdUrl });
-    if (sdUrl) qualities.push({ quality: '480p', format: 'mp4', size: 'Unknown', url: sdUrl });
-
-    if (qualities.length === 0) {
-      throw new Error('No video URLs found');
-    }
-
-    return {
-      title,
-      thumbnail: 'https://via.placeholder.com/640x360',
-      duration: '0:00',
-      qualities,
-      audioFormats: [],
-      platform: 'facebook'
-    };
-  } catch (error) {
-    console.error('Facebook extraction failed:', error);
-    return await extractWithCobalt(url, 'facebook');
+  const info = infoResponse.data;
+  
+  if (info.status !== 'ok' || !info.links) {
+    throw new Error('Y2Mate analysis failed');
   }
-}
 
-// Twitter extraction
-async function extractTwitter(url) {
-  try {
-    // Use Twitter's syndication API
-    const tweetId = url.match(/status\/(\d+)/)?.[1];
-    
-    if (!tweetId) {
-      throw new Error('Invalid Twitter URL');
-    }
+  const videoLinks = info.links.mp4 || {};
+  const audioLinks = info.links.mp3 || {};
 
-    const apiUrl = `https://cdn.syndication.twimg.com/tweet-result?id=${tweetId}&lang=en`;
-    
-    const response = await axios.get(apiUrl, {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-      },
-      timeout: 10000
-    });
-
-    const data = response.data;
-    const video = data.video;
-
-    if (!video || !video.variants) {
-      throw new Error('No video found in tweet');
-    }
-
-    const videoVariants = video.variants
-      .filter(v => v.type === 'video/mp4')
-      .sort((a, b) => (b.bitrate || 0) - (a.bitrate || 0));
-
-    const qualities = videoVariants.map((v, i) => ({
-      quality: i === 0 ? '720p' : i === 1 ? '480p' : '360p',
+  const qualities = Object.entries(videoLinks)
+    .filter(([quality, data]) => data.size && data.k)
+    .map(([quality, data]) => ({
+      quality: quality,
       format: 'mp4',
-      size: 'Unknown',
-      url: v.url
+      size: data.size,
+      url: `https://www.y2mate.com/mates/convertV2/index?k=${data.k}`,
+      k: data.k
     }));
 
-    return {
-      title: data.text?.substring(0, 100) || 'Twitter Video',
-      thumbnail: data.photos?.[0]?.url || 'https://via.placeholder.com/640x360',
-      duration: '0:00',
-      qualities,
-      audioFormats: [],
-      platform: 'twitter'
-    };
-  } catch (error) {
-    console.error('Twitter extraction failed:', error);
-    return await extractWithCobalt(url, 'twitter');
-  }
-}
+  const audioQualities = Object.entries(audioLinks)
+    .filter(([quality, data]) => data.size && data.k)
+    .map(([quality, data]) => ({
+      quality: quality,
+      format: 'mp3',
+      size: data.size,
+      url: `https://www.y2mate.com/mates/convertV2/index?k=${data.k}`,
+      k: data.k
+    }));
 
-// TikTok extraction
-async function extractTikTok(url) {
-  try {
-    const response = await axios.get(url, {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-      },
-      timeout: 10000
-    });
-
-    const html = response.data;
-    
-    // Extract video URL from TikTok's HTML
-    const videoMatch = html.match(/"downloadAddr":"([^"]+)"/);
-    const videoUrl = videoMatch ? videoMatch[1] : null;
-
-    const titleMatch = html.match(/"desc":"([^"]+)"/);
-    const title = titleMatch ? titleMatch[1] : 'TikTok Video';
-
-    if (!videoUrl) {
-      throw new Error('No video URL found');
-    }
-
-    return {
-      title,
-      thumbnail: 'https://via.placeholder.com/640x360',
-      duration: '0:00',
-      qualities: [
-        { quality: '720p', format: 'mp4', size: 'Unknown', url: videoUrl }
-      ],
-      audioFormats: [],
-      platform: 'tiktok'
-    };
-  } catch (error) {
-    console.error('TikTok extraction failed:', error);
-    return await extractWithCobalt(url, 'tiktok');
-  }
-}
-
-// Generic extraction for other platforms
-async function extractGeneric(url, platform) {
-  return await extractWithCobalt(url, platform);
-}
-
-// Cobalt fallback
-async function extractWithCobalt(url, platform) {
-  try {
-    const response = await axios.post('https://api.cobalt.tools/api/json', {
-      url: url,
-      vCodec: 'h264',
-      vQuality: '1080',
-      aFormat: 'mp3',
-      filenamePattern: 'basic',
-      downloadMode: 'auto'
-    }, {
-      headers: {
-        'Accept': 'application/json',
-        'Content-Type': 'application/json'
-      },
-      timeout: 8000
-    });
-
-    const data = response.data;
-    
-    if (data.status === 'error') {
-      throw new Error(data.text || 'Cobalt extraction failed');
-    }
-
-    const videoUrl = data.url;
-    
-    return {
-      title: `${platform.charAt(0).toUpperCase() + platform.slice(1)} Video`,
-      thumbnail: data.thumb || 'https://via.placeholder.com/640x360',
-      duration: '0:00',
-      qualities: [
-        { quality: '720p', format: 'mp4', size: 'Unknown', url: videoUrl }
-      ],
-      audioFormats: data.audio ? [
-        { quality: '128kbps', format: 'mp3', size: 'Unknown', url: data.audio }
-      ] : [],
-      platform
-    };
-  } catch (error) {
-    console.error('Cobalt fallback failed:', error);
-    throw new Error('All extraction methods failed');
-  }
+  return {
+    title: info.title || 'Video',
+    thumbnail: `https://i.ytimg.com/vi/${info.vid}/maxresdefault.jpg`,
+    duration: info.t || '0:00',
+    qualities: qualities.length > 0 ? qualities : [],
+    audioFormats: audioQualities.length > 0 ? audioQualities : [],
+    platform: 'youtube'
+  };
 }
 
 // Helper functions
@@ -368,11 +220,6 @@ function detectPlatform(url) {
     reddit: /reddit\.com/,
     twitch: /twitch\.tv/,
     soundcloud: /soundcloud\.com/,
-    terabox: /terabox\.com/,
-    streamable: /streamable\.com/,
-    pinterest: /pinterest\.com/,
-    linkedin: /linkedin\.com/,
-    snapchat: /snapchat\.com/
   };
 
   for (const [platform, pattern] of Object.entries(patterns)) {
@@ -395,7 +242,7 @@ function formatBytes(bytes) {
 function formatDuration(seconds) {
   const h = Math.floor(seconds / 3600);
   const m = Math.floor((seconds % 3600) / 60);
-  const s = seconds % 60;
+  const s = Math.floor(seconds % 60);
   
   if (h > 0) {
     return `${h}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
