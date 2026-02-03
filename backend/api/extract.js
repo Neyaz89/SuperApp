@@ -36,11 +36,14 @@ module.exports = async (req, res) => {
 
     console.log('Extracting:', url);
 
-    // Try yt-dlp with proxy rotation
-    const result = await extractWithYtDlp(url);
-    
-    if (result) {
-      return res.json(result);
+    // Try yt-dlp first (supports 1000+ websites)
+    try {
+      const result = await extractWithYtDlp(url);
+      if (result && result.qualities && result.qualities.length > 0) {
+        return res.json(result);
+      }
+    } catch (e) {
+      console.log('yt-dlp failed, trying API fallbacks...');
     }
 
     // Fallback to API methods
@@ -64,59 +67,33 @@ module.exports = async (req, res) => {
   }
 };
 
-// Method 1: yt-dlp with proxy rotation (Most powerful)
+// Method 1: yt-dlp (Supports 1000+ websites)
 async function extractWithYtDlp(url) {
   try {
     // Check if yt-dlp is installed
     try {
       await execAsync('yt-dlp --version', { timeout: 5000 });
     } catch (e) {
-      console.error('yt-dlp not installed, skipping');
+      console.error('yt-dlp not installed');
       throw new Error('yt-dlp not available');
     }
     
-    // Try without proxy first (faster)
-    let command = `yt-dlp --no-check-certificate --skip-download --dump-json --format "best[height<=720]" "${url}"`;
+    // Try direct extraction (works for most sites except YouTube)
+    const command = `yt-dlp --no-check-certificate --skip-download --dump-json --format "best" "${url}"`;
     
-    console.log('Running yt-dlp without proxy first...');
-    
-    try {
-      const { stdout, stderr } = await execAsync(command, {
-        timeout: 20000,
-        maxBuffer: 10 * 1024 * 1024
-      });
-
-      if (stdout && !stderr.includes('ERROR')) {
-        const data = JSON.parse(stdout);
-        console.log('yt-dlp success without proxy! Title:', data.title);
-        return formatYtDlpResponse(data, url);
-      }
-    } catch (e) {
-      console.log('Direct extraction failed, trying with proxy...');
-    }
-
-    // If direct fails, try with proxy
-    const proxy = getNextProxy();
-    command = `yt-dlp --proxy "${proxy}" --no-check-certificate --skip-download --dump-json --format "best[height<=720]" "${url}"`;
-    
-    console.log('Running yt-dlp with proxy:', proxy);
+    console.log('Running yt-dlp for:', detectPlatform(url));
     
     const { stdout, stderr } = await execAsync(command, {
-      timeout: 20000,
+      timeout: 25000,
       maxBuffer: 10 * 1024 * 1024
     });
 
-    if (stderr && stderr.includes('ERROR')) {
-      console.error('yt-dlp stderr:', stderr);
+    if (!stdout || stderr.includes('ERROR')) {
       throw new Error('yt-dlp extraction failed');
     }
 
-    if (!stdout) {
-      throw new Error('No output from yt-dlp');
-    }
-
     const data = JSON.parse(stdout);
-    console.log('yt-dlp success with proxy! Title:', data.title);
+    console.log('✓ yt-dlp success! Title:', data.title);
     
     return formatYtDlpResponse(data, url);
 
@@ -361,6 +338,26 @@ function detectPlatform(url) {
     twitter: /(?:twitter\.com|x\.com)/,
     tiktok: /tiktok\.com/,
     vimeo: /vimeo\.com/,
+    dailymotion: /dailymotion\.com/,
+    reddit: /reddit\.com/,
+    twitch: /twitch\.tv/,
+    soundcloud: /soundcloud\.com/,
+    pinterest: /pinterest\.com/,
+    linkedin: /linkedin\.com/,
+    snapchat: /snapchat\.com/,
+    tumblr: /tumblr\.com/,
+    vk: /vk\.com/,
+    bilibili: /bilibili\.com/,
+    niconico: /nicovideo\.jp/,
+    streamable: /streamable\.com/,
+    imgur: /imgur\.com/,
+    flickr: /flickr\.com/,
+    '9gag': /9gag\.com/,
+    bandcamp: /bandcamp\.com/,
+    mixcloud: /mixcloud\.com/,
+    pornhub: /pornhub\.com/,
+    xvideos: /xvideos\.com/,
+    xhamster: /xhamster\.com/
   };
 
   for (const [platform, pattern] of Object.entries(patterns)) {
@@ -369,7 +366,7 @@ function detectPlatform(url) {
     }
   }
 
-  return 'unknown';
+  return 'generic';
 }
 
 function formatBytes(bytes) {
