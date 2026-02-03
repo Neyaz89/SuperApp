@@ -1,18 +1,26 @@
-FROM python:3.11-slim
-
-WORKDIR /app
+FROM node:18-alpine
 
 # Install yt-dlp and dependencies
-RUN apt-get update && apt-get install -y \
+RUN apk add --no-cache \
+    python3 \
+    py3-pip \
     ffmpeg \
-    curl \
-    && rm -rf /var/lib/apt/lists/*
+    && pip3 install --no-cache-dir yt-dlp
 
-RUN pip install --no-cache-dir yt-dlp flask flask-cors
+# Set working directory
+WORKDIR /app
 
-# Copy application
-COPY app.py .
+# Copy package files
+COPY package*.json ./
 
-EXPOSE 8080
+# Install dependencies
+RUN npm install --production
 
-CMD ["python", "app.py"]
+# Copy application files
+COPY . .
+
+# Expose port
+EXPOSE 3000
+
+# Start server
+CMD ["node", "server.js"]
