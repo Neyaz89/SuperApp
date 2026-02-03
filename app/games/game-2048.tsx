@@ -116,16 +116,6 @@ export default function Game2048() {
     return colors[value] || '#3C3A32';
   };
 
-  const pan = Gesture.Pan()
-    .onEnd((e) => {
-      const { translationX, translationY } = e;
-      if (Math.abs(translationX) > Math.abs(translationY)) {
-        move(translationX > 0 ? 'right' : 'left');
-      } else {
-        move(translationY > 0 ? 'down' : 'up');
-      }
-    });
-
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
       <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
