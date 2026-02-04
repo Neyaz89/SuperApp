@@ -4,11 +4,11 @@ const fetch = require('node-fetch');
 // Working Cobalt instances (official API shut down Nov 11, 2024)
 // Source: https://cobalt.directory/
 const COBALT_INSTANCES = [
-  'https://cobalt.alpha.wolfy.love/api/json',  // 96% uptime, 23/24 services
-  'https://cobalt.omega.wolfy.love/api/json',  // 96% uptime, 23/24 services
-  'https://c.meowing.de/api/json',             // 96% uptime, 23/24 services
-  'https://api.qwkuns.me/api/json',            // 92% uptime, 22/24 services
-  'https://melon.clxxped.lol/api/json'         // 88% uptime, 21/24 services
+  'https://cobalt.alpha.wolfy.love',  // 96% uptime, 23/24 services
+  'https://cobalt.omega.wolfy.love',  // 96% uptime, 23/24 services
+  'https://c.meowing.de',             // 96% uptime, 23/24 services
+  'https://api.qwkuns.me',            // 92% uptime, 22/24 services
+  'https://melon.clxxped.lol'         // 88% uptime, 21/24 services
 ];
 
 let currentInstanceIndex = 0;
