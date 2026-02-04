@@ -429,21 +429,30 @@ function formatYtDlpResponse(data, url) {
 
 // Fallback: Multiple API methods
 async function extractWithFallbackAPIs(url) {
+  console.log('🔄 Trying fallback APIs...');
+  
+  // Import the new Cobalt extractor with community instances
+  const { extractWithCobalt: extractWithCobaltNew } = require('../extractors/cobalt-extractor');
+  
   const methods = [
-    () => extractWithCobalt(url),
-    () => extractWithSaveFrom(url),
-    () => extractWithSnapSave(url),
-    () => extractWithY2Mate(url),
-    () => extractWithLoader(url)
+    { name: 'Cobalt (Community)', fn: () => extractWithCobaltNew(url) },
+    { name: 'Cobalt (Old)', fn: () => extractWithCobalt(url) },
+    { name: 'SaveFrom', fn: () => extractWithSaveFrom(url) },
+    { name: 'SnapSave', fn: () => extractWithSnapSave(url) },
+    { name: 'Y2Mate', fn: () => extractWithY2Mate(url) },
+    { name: 'Loader', fn: () => extractWithLoader(url) }
   ];
 
   for (const method of methods) {
     try {
-      const result = await method();
+      console.log(`⏳ Trying ${method.name}...`);
+      const result = await method.fn();
       if (result && result.qualities && result.qualities.length > 0) {
+        console.log(`✅ ${method.name} succeeded!`);
         return result;
       }
     } catch (e) {
+      console.log(`❌ ${method.name} failed:`, e.message);
       continue;
     }
   }
