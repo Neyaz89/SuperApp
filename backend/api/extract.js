@@ -102,34 +102,42 @@ async function extractYouTubeRobust(url) {
   const cookieFile = '/app/cookies.txt';
   const hasCookies = fs.existsSync(cookieFile);
   
-  console.log(hasCookies ? '✓ Cookies available' : '⚠️ No cookies found');
+  if (!hasCookies) {
+    throw new Error('YouTube requires cookies - please add cookies.txt file');
+  }
 
-  // Strategy 1: Try WITHOUT cookies first (mobile clients work better without auth)
-  const strategiesWithoutCookies = [
+  console.log('✓ Using cookies for YouTube extraction');
+
+  // Always use cookies - try different player clients
+  const strategies = [
     {
-      name: 'iOS client (no cookies)',
-      args: '--extractor-args "youtube:player_client=ios"',
-      format: 'best'  // Simplified - let yt-dlp choose
+      name: 'iOS client',
+      args: '--extractor-args "youtube:player_client=ios"'
     },
     {
-      name: 'Android client (no cookies)',
-      args: '--extractor-args "youtube:player_client=android"',
-      format: 'best'  // Simplified - let yt-dlp choose
+      name: 'Android client',
+      args: '--extractor-args "youtube:player_client=android"'
     },
     {
-      name: 'mweb client (no cookies)',
-      args: '--extractor-args "youtube:player_client=mweb"',
-      format: 'best'  // Simplified - let yt-dlp choose
+      name: 'mweb client',
+      args: '--extractor-args "youtube:player_client=mweb"'
+    },
+    {
+      name: 'Default web client',
+      args: ''
+    },
+    {
+      name: 'tv_embedded client',
+      args: '--extractor-args "youtube:player_client=tv_embedded"'
     }
   ];
 
-  // Try without cookies first
-  for (const strategy of strategiesWithoutCookies) {
+  for (const strategy of strategies) {
     try {
-      console.log(`Trying: ${strategy.name}`);
-      const result = await executeYtDlpCommand(url, strategy.args, strategy.format, null);
+      console.log(`Trying: ${strategy.name} with cookies`);
+      const result = await executeYtDlpCommand(url, strategy.args, cookieFile);
       if (result) {
-        console.log(`✓ Success with ${strategy.name}`);
+        console.log(`✓ SUCCESS with ${strategy.name}!`);
         return result;
       }
     } catch (e) {
@@ -137,58 +145,21 @@ async function extractYouTubeRobust(url) {
     }
   }
 
-  // Strategy 2: If cookies available, try WITH cookies
-  if (hasCookies) {
-    const strategiesWithCookies = [
-      {
-        name: 'iOS client (with cookies)',
-        args: '--extractor-args "youtube:player_client=ios"',
-        format: 'best'  // Simplified - let yt-dlp choose
-      },
-      {
-        name: 'Android client (with cookies)',
-        args: '--extractor-args "youtube:player_client=android"',
-        format: 'best'  // Simplified - let yt-dlp choose
-      },
-      {
-        name: 'Default web (with cookies)',
-        args: '',
-        format: 'best'  // Simplified - let yt-dlp choose
-      }
-    ];
-
-    for (const strategy of strategiesWithCookies) {
-      try {
-        console.log(`Trying: ${strategy.name}`);
-        const result = await executeYtDlpCommand(url, strategy.args, strategy.format, cookieFile);
-        if (result) {
-          console.log(`✓ Success with ${strategy.name}`);
-          return result;
-        }
-      } catch (e) {
-        console.log(`${strategy.name} failed:`, e.message);
-      }
-    }
-  }
-
   throw new Error('All YouTube extraction strategies failed');
 }
 
 // Execute yt-dlp command with robust configuration
-async function executeYtDlpCommand(url, extractorArgs, formatString, cookieFile) {
-  // Build command with production-ready flags
+async function executeYtDlpCommand(url, extractorArgs, cookieFile) {
+  // Build command with minimal flags (removed problematic ones)
   const baseFlags = [
     '--no-check-certificate',
     '--skip-download',
     '--dump-json',
     '--no-warnings',
-    '--force-ipv4',  // Render compatibility
-    '--no-playlist',  // Single video only
-    '--extractor-args "youtube:skip=dash"',  // Skip DASH manifest (signature issues)
-    '--merge-output-format mp4'  // Force MP4 output
+    '--no-playlist'
   ];
 
-  // Add cookies if provided
+  // Add cookies (required for YouTube)
   if (cookieFile) {
     baseFlags.push(`--cookies ${cookieFile}`);
   }
@@ -198,12 +169,9 @@ async function executeYtDlpCommand(url, extractorArgs, formatString, cookieFile)
     baseFlags.push(extractorArgs);
   }
 
-  // Add format selection with fallbacks
-  if (formatString) {
-    baseFlags.push(`--format "${formatString}"`);
-  }
-
   const command = `yt-dlp ${baseFlags.join(' ')} "${url}"`;
+  
+  console.log('Command:', command.substring(0, 150) + '...');
   
   try {
     const { stdout, stderr } = await execAsync(command, {
@@ -227,6 +195,7 @@ async function executeYtDlpCommand(url, extractorArgs, formatString, cookieFile)
       throw new Error('No formats available');
     }
 
+    console.log(`✓ Got ${data.formats.length} formats for: ${data.title}`);
     return formatYtDlpResponse(data, url);
   } catch (error) {
     // Re-throw with cleaned error message
@@ -240,32 +209,26 @@ async function executeYtDlpCommand(url, extractorArgs, formatString, cookieFile)
 
 // Extract from generic (non-YouTube) sites
 async function extractGenericSite(url) {
-  const formatStrategies = [
-    'best'  // Simplified - let yt-dlp choose best format
-  ];
+  console.log('Extracting generic site...');
+  
+  try {
+    const command = `yt-dlp --no-check-certificate --skip-download --dump-json --no-warnings --no-playlist "${url}"`;
+    
+    const { stdout, stderr } = await execAsync(command, {
+      timeout: 30000,
+      maxBuffer: 10 * 1024 * 1024
+    });
 
-  for (const format of formatStrategies) {
-    try {
-      console.log(`Trying format: ${format}`);
-      const command = `yt-dlp --no-check-certificate --skip-download --dump-json --no-warnings --force-ipv4 --merge-output-format mp4 --format "${format}" "${url}"`;
-      
-      const { stdout, stderr } = await execAsync(command, {
-        timeout: 30000,
-        maxBuffer: 10 * 1024 * 1024
-      });
-
-      if (stdout && !stderr.includes('ERROR')) {
-        const data = JSON.parse(stdout);
-        console.log('✓ Generic extraction success! Title:', data.title);
-        return formatYtDlpResponse(data, url);
-      }
-    } catch (e) {
-      console.log(`Format ${format} failed, trying next...`);
-      continue;
+    if (stdout && !stderr.includes('ERROR')) {
+      const data = JSON.parse(stdout);
+      console.log('✓ Generic extraction success! Title:', data.title);
+      return formatYtDlpResponse(data, url);
     }
+  } catch (e) {
+    console.log('Generic extraction failed:', e.message);
   }
 
-  throw new Error('All format strategies failed for generic site');
+  throw new Error('Generic site extraction failed');
 }
 
 function formatYtDlpResponse(data, url) {
