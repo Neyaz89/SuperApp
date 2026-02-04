@@ -1,6 +1,7 @@
 const { exec } = require('child_process');
 const { promisify } = require('util');
 const axios = require('axios');
+const ytDlp = require('@distube/yt-dlp');
 
 const execAsync = promisify(exec);
 
@@ -70,12 +71,22 @@ module.exports = async (req, res) => {
 // Method 1: yt-dlp (Supports 1000+ websites) - PRODUCTION READY
 async function extractWithYtDlp(url) {
   try {
-    // Check if yt-dlp is installed
+    // Get yt-dlp binary path from npm package
+    let ytDlpPath = 'yt-dlp'; // Default CLI
+    
     try {
-      const { stdout } = await execAsync('yt-dlp --version', { timeout: 5000 });
+      ytDlpPath = await ytDlp.getPath();
+      console.log('Using yt-dlp from npm:', ytDlpPath);
+    } catch (e) {
+      console.log('Using system yt-dlp');
+    }
+    
+    // Check if yt-dlp is available
+    try {
+      const { stdout } = await execAsync(`"${ytDlpPath}" --version`, { timeout: 5000 });
       console.log('yt-dlp version:', stdout.trim());
     } catch (e) {
-      console.error('yt-dlp not installed');
+      console.error('yt-dlp not available');
       throw new Error('yt-dlp not available');
     }
     
@@ -84,16 +95,16 @@ async function extractWithYtDlp(url) {
     
     // For YouTube, use robust extraction strategy
     if (platform === 'youtube') {
-      return await extractYouTubeRobust(url);
+      return await extractYouTubeRobust(url, ytDlpPath);
     }
     
-    // For Terabox, use dedicated Python library
+    // For Terabox, use generic extractor
     if (platform === 'terabox') {
-      return await extractTerabox(url);
+      return await extractTerabox(url, ytDlpPath);
     }
     
     // For non-YouTube sites, use standard extraction with fallback
-    return await extractGenericSite(url);
+    return await extractGenericSite(url, ytDlpPath);
 
   } catch (error) {
     console.error('yt-dlp failed:', error.message);
@@ -148,88 +159,31 @@ async function extractYouTubeRobust(url) {
   }
 }
 
-// Extract from Terabox using Python library
-async function extractTerabox(url) {
-  const fs = require('fs');
-  
-  // Cookies are optional now (using public API)
-  let teraboxCookie = process.env.TERABOX_COOKIE || '';
-  
-  // Try to read from terabox_cookies.txt if exists
-  const cookieFile = '/app/terabox_cookies.txt';
-  if (fs.existsSync(cookieFile)) {
-    teraboxCookie = fs.readFileSync(cookieFile, 'utf8').trim();
-    console.log('✓ Terabox cookies found (optional)');
-  } else {
-    console.log('✓ Using public Terabox API (no cookies needed)');
-  }
-
-  console.log('✓ Using Python Terabox extractor');
+// Extract from Terabox using yt-dlp generic extractor
+async function extractTerabox(url, ytDlpPath = 'yt-dlp') {
+  console.log('✓ Trying yt-dlp generic extractor for Terabox');
 
   try {
-    const pythonScript = '/app/terabox_extract.py';
-    const command = `python3 ${pythonScript} "${url}" "${teraboxCookie}"`;
+    // Use yt-dlp's generic extractor - it can handle many sites
+    const command = `"${ytDlpPath}" --no-check-certificate --skip-download --dump-json --no-warnings --no-playlist --force-generic-extractor "${url}"`;
     
-    console.log('Running Python Terabox extractor...');
+    console.log('Running yt-dlp generic extractor...');
     
     const { stdout, stderr } = await execAsync(command, {
       timeout: 30000,
       maxBuffer: 10 * 1024 * 1024
     });
 
-    // Log raw output for debugging
-    if (stderr) {
-      console.log('Python stderr:', stderr);
+    if (stdout && !stderr.includes('ERROR')) {
+      const data = JSON.parse(stdout);
+      console.log('✓ Generic extraction success! Title:', data.title);
+      return formatYtDlpResponse(data, url);
     }
-
-    // Try to parse JSON from stdout
-    let result;
-    try {
-      // Clean stdout - remove any non-JSON text
-      const jsonMatch = stdout.match(/\{[\s\S]*\}/);
-      if (!jsonMatch) {
-        throw new Error('No JSON found in Python output');
-      }
-      result = JSON.parse(jsonMatch[0]);
-    } catch (parseError) {
-      console.error('JSON parse error:', parseError.message);
-      console.error('Raw stdout:', stdout.substring(0, 500));
-      throw new Error(`Failed to parse Python output: ${parseError.message}`);
-    }
-    
-    if (!result.success) {
-      throw new Error(result.error || 'Terabox extraction failed');
-    }
-
-    console.log(`✓ SUCCESS! Got file: ${result.title}`);
-    console.log(`✓ Extractor: ${result.extractor}`);
-    
-    // Convert to our format
-    return {
-      title: result.title || 'Terabox File',
-      thumbnail: result.thumbnail || 'https://via.placeholder.com/640x360',
-      duration: '0:00',
-      qualities: [
-        {
-          quality: 'Original',
-          format: 'mp4',
-          size: result.file_size || 'Unknown',
-          url: result.download_link,
-          hasAudio: true,
-          hasVideo: true,
-          protocol: 'https'
-        }
-      ],
-      audioFormats: [],
-      platform: 'terabox',
-      extractionMethod: 'terabox-cloudflare-api',
-      extractor: result.extractor
-    };
-    
-  } catch (error) {
-    console.error('Terabox extraction failed:', error.message);
-    throw error;
+  } catch (e) {
+    console.log('yt-dlp generic failed:', e.message);
   }
+
+  throw new Error('Terabox extraction failed - file may be private or require authentication');
 }
 
 // Format Python yt-dlp response
@@ -356,11 +310,11 @@ async function executeYtDlpCommand(url, extractorArgs, cookieFile) {
 }
 
 // Extract from generic (non-YouTube) sites
-async function extractGenericSite(url) {
+async function extractGenericSite(url, ytDlpPath = 'yt-dlp') {
   console.log('Extracting generic site...');
   
   try {
-    const command = `yt-dlp --no-check-certificate --skip-download --dump-json --no-warnings --no-playlist "${url}"`;
+    const command = `"${ytDlpPath}" --no-check-certificate --skip-download --dump-json --no-warnings --no-playlist "${url}"`;
     
     const { stdout, stderr } = await execAsync(command, {
       timeout: 30000,
