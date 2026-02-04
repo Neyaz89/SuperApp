@@ -101,10 +101,10 @@ async function extractWithYtDlp(url) {
     
     // YouTube-specific bypass using multiple methods (2025 bot detection bypass)
     if (platform === 'youtube') {
-      // Method 1: android_vr with cookies (BEST)
+      // Method 1: Default web client with cookies (most formats available)
       try {
-        console.log('Method 1: Trying android_vr with cookies...');
-        const command = `yt-dlp --no-check-certificate --skip-download --dump-json --no-warnings ${cookiesArg} --extractor-args "youtube:player_client=android_vr" "${url}"`;
+        console.log('Method 1: Trying default web client with cookies...');
+        const command = `yt-dlp --no-check-certificate --skip-download --dump-json --no-warnings ${cookiesArg} "${url}"`;
         
         const { stdout, stderr } = await execAsync(command, {
           timeout: 30000,
@@ -113,17 +113,17 @@ async function extractWithYtDlp(url) {
 
         if (stdout && !stderr.includes('ERROR')) {
           const data = JSON.parse(stdout);
-          console.log('✓ android_vr with cookies success! Title:', data.title);
+          console.log('✓ Default web client success! Title:', data.title);
           return formatYtDlpResponse(data, url);
         }
       } catch (e) {
-        console.log('android_vr with cookies failed:', e.message);
+        console.log('Default web client failed:', e.message);
       }
 
-      // Method 2: tv_embedded with cookies
+      // Method 2: android client with cookies
       try {
-        console.log('Method 2: Trying tv_embedded with cookies...');
-        const command = `yt-dlp --no-check-certificate --skip-download --dump-json --no-warnings ${cookiesArg} --extractor-args "youtube:player_client=tv_embedded" "${url}"`;
+        console.log('Method 2: Trying android client with cookies...');
+        const command = `yt-dlp --no-check-certificate --skip-download --dump-json --no-warnings ${cookiesArg} --extractor-args "youtube:player_client=android" "${url}"`;
         
         const { stdout, stderr } = await execAsync(command, {
           timeout: 30000,
@@ -132,17 +132,17 @@ async function extractWithYtDlp(url) {
 
         if (stdout && !stderr.includes('ERROR')) {
           const data = JSON.parse(stdout);
-          console.log('✓ tv_embedded with cookies success! Title:', data.title);
+          console.log('✓ Android client success! Title:', data.title);
           return formatYtDlpResponse(data, url);
         }
       } catch (e) {
-        console.log('tv_embedded with cookies failed:', e.message);
+        console.log('Android client failed:', e.message);
       }
 
-      // Method 3: ios with cookies and user agent
+      // Method 3: mweb client with cookies
       try {
-        console.log('Method 3: Trying iOS with cookies...');
-        const command = `yt-dlp --no-check-certificate --skip-download --dump-json --no-warnings ${cookiesArg} --user-agent "com.google.ios.youtube/19.29.1 (iPhone16,2; U; CPU iOS 17_5_1 like Mac OS X;)" --extractor-args "youtube:player_client=ios" "${url}"`;
+        console.log('Method 3: Trying mweb client with cookies...');
+        const command = `yt-dlp --no-check-certificate --skip-download --dump-json --no-warnings ${cookiesArg} --extractor-args "youtube:player_client=mweb" "${url}"`;
         
         const { stdout, stderr } = await execAsync(command, {
           timeout: 30000,
@@ -151,11 +151,11 @@ async function extractWithYtDlp(url) {
 
         if (stdout && !stderr.includes('ERROR')) {
           const data = JSON.parse(stdout);
-          console.log('✓ iOS with cookies success! Title:', data.title);
+          console.log('✓ mweb client success! Title:', data.title);
           return formatYtDlpResponse(data, url);
         }
       } catch (e) {
-        console.log('iOS with cookies failed:', e.message);
+        console.log('mweb client failed:', e.message);
       }
 
       console.log('❌ All 3 YouTube cookie methods failed');
