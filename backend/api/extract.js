@@ -152,27 +152,25 @@ async function extractYouTubeRobust(url) {
 async function extractTerabox(url) {
   const fs = require('fs');
   
-  // Check for Terabox cookie (can be in environment or file)
+  // Cookies are optional now (using public API)
   let teraboxCookie = process.env.TERABOX_COOKIE || '';
   
   // Try to read from terabox_cookies.txt if exists
   const cookieFile = '/app/terabox_cookies.txt';
   if (fs.existsSync(cookieFile)) {
     teraboxCookie = fs.readFileSync(cookieFile, 'utf8').trim();
-    console.log('✓ Using Terabox cookies from file');
-  }
-  
-  if (!teraboxCookie) {
-    throw new Error('Terabox requires authentication. Please add TERABOX_COOKIE environment variable or terabox_cookies.txt file');
+    console.log('✓ Terabox cookies found (optional)');
+  } else {
+    console.log('✓ Using public Terabox API (no cookies needed)');
   }
 
-  console.log('✓ Using Python TeraboxDL library');
+  console.log('✓ Using Python Terabox extractor');
 
   try {
     const pythonScript = '/app/terabox_extract.py';
     const command = `python3 ${pythonScript} "${url}" "${teraboxCookie}"`;
     
-    console.log('Running Python TeraboxDL...');
+    console.log('Running Python Terabox extractor...');
     
     const { stdout, stderr } = await execAsync(command, {
       timeout: 30000,
@@ -204,6 +202,7 @@ async function extractTerabox(url) {
     }
 
     console.log(`✓ SUCCESS! Got file: ${result.title}`);
+    console.log(`✓ Extractor: ${result.extractor}`);
     
     // Convert to our format
     return {
@@ -223,7 +222,7 @@ async function extractTerabox(url) {
       ],
       audioFormats: [],
       platform: 'terabox',
-      extractionMethod: 'terabox-python',
+      extractionMethod: 'terabox-cloudflare-api',
       extractor: result.extractor
     };
     
