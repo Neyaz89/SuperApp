@@ -67,7 +67,7 @@ module.exports = async (req, res) => {
   }
 };
 
-// Method 1: yt-dlp (Supports 1000+ websites)
+// Method 1: yt-dlp (Supports 1000+ websites) - PRODUCTION READY
 async function extractWithYtDlp(url) {
   try {
     // Check if yt-dlp is installed
@@ -82,112 +82,13 @@ async function extractWithYtDlp(url) {
     const platform = detectPlatform(url);
     console.log('Extracting from:', platform);
     
-    // For YouTube, use cookies file
-    let cookiesArg = '';
+    // For YouTube, use robust extraction strategy
     if (platform === 'youtube') {
-      const fs = require('fs');
-      const cookieFile = '/app/cookies.txt'; // Docker path
-      
-      // Check if cookies file exists
-      if (fs.existsSync(cookieFile)) {
-        cookiesArg = `--cookies ${cookieFile}`;
-        console.log('✓ Using cookies file');
-      } else {
-        console.log('⚠️ No cookies file found, using visitor_data method');
-        // Use visitor_data as fallback (no cookies needed)
-        cookiesArg = '--extractor-args "youtubetab:skip=webpage" --extractor-args "youtube:player_skip=webpage,configs"';
-      }
+      return await extractYouTubeRobust(url);
     }
     
-    // YouTube-specific bypass using multiple methods (2025 bot detection bypass)
-    if (platform === 'youtube') {
-      // Method 1: Default web client with cookies (most formats available)
-      try {
-        console.log('Method 1: Trying default web client with cookies...');
-        const command = `yt-dlp --no-check-certificate --skip-download --dump-json --no-warnings ${cookiesArg} "${url}"`;
-        
-        const { stdout, stderr } = await execAsync(command, {
-          timeout: 30000,
-          maxBuffer: 10 * 1024 * 1024
-        });
-
-        if (stdout && !stderr.includes('ERROR')) {
-          const data = JSON.parse(stdout);
-          console.log('✓ Default web client success! Title:', data.title);
-          return formatYtDlpResponse(data, url);
-        }
-      } catch (e) {
-        console.log('Default web client failed:', e.message);
-      }
-
-      // Method 2: android client with cookies
-      try {
-        console.log('Method 2: Trying android client with cookies...');
-        const command = `yt-dlp --no-check-certificate --skip-download --dump-json --no-warnings ${cookiesArg} --extractor-args "youtube:player_client=android" "${url}"`;
-        
-        const { stdout, stderr } = await execAsync(command, {
-          timeout: 30000,
-          maxBuffer: 10 * 1024 * 1024
-        });
-
-        if (stdout && !stderr.includes('ERROR')) {
-          const data = JSON.parse(stdout);
-          console.log('✓ Android client success! Title:', data.title);
-          return formatYtDlpResponse(data, url);
-        }
-      } catch (e) {
-        console.log('Android client failed:', e.message);
-      }
-
-      // Method 3: mweb client with cookies
-      try {
-        console.log('Method 3: Trying mweb client with cookies...');
-        const command = `yt-dlp --no-check-certificate --skip-download --dump-json --no-warnings ${cookiesArg} --extractor-args "youtube:player_client=mweb" "${url}"`;
-        
-        const { stdout, stderr } = await execAsync(command, {
-          timeout: 30000,
-          maxBuffer: 10 * 1024 * 1024
-        });
-
-        if (stdout && !stderr.includes('ERROR')) {
-          const data = JSON.parse(stdout);
-          console.log('✓ mweb client success! Title:', data.title);
-          return formatYtDlpResponse(data, url);
-        }
-      } catch (e) {
-        console.log('mweb client failed:', e.message);
-      }
-
-      console.log('❌ All 3 YouTube cookie methods failed');
-      throw new Error('YouTube extraction failed - all methods exhausted');
-    }
-    
-    // For non-YouTube sites, use standard extraction
-    const command = `yt-dlp --no-check-certificate --skip-download --dump-json --no-warnings --format "best" "${url}"`;
-    
-    console.log('Running yt-dlp...');
-    
-    const { stdout, stderr } = await execAsync(command, {
-      timeout: 30000,
-      maxBuffer: 10 * 1024 * 1024
-    });
-
-    if (!stdout) {
-      console.error('No output from yt-dlp');
-      console.error('stderr:', stderr);
-      throw new Error('No output from yt-dlp');
-    }
-
-    if (stderr && stderr.includes('ERROR')) {
-      console.error('yt-dlp error:', stderr);
-      throw new Error('yt-dlp extraction failed: ' + stderr);
-    }
-
-    const data = JSON.parse(stdout);
-    console.log('✓ yt-dlp success! Title:', data.title);
-    console.log('Formats found:', data.formats?.length || 0);
-    
-    return formatYtDlpResponse(data, url);
+    // For non-YouTube sites, use standard extraction with fallback
+    return await extractGenericSite(url);
 
   } catch (error) {
     console.error('yt-dlp failed:', error.message);
@@ -195,41 +96,240 @@ async function extractWithYtDlp(url) {
   }
 }
 
+// Robust YouTube extraction with multiple fallback strategies
+async function extractYouTubeRobust(url) {
+  const fs = require('fs');
+  const cookieFile = '/app/cookies.txt';
+  const hasCookies = fs.existsSync(cookieFile);
+  
+  console.log(hasCookies ? '✓ Cookies available' : '⚠️ No cookies found');
+
+  // Strategy 1: Try WITHOUT cookies first (mobile clients work better without auth)
+  const strategiesWithoutCookies = [
+    {
+      name: 'iOS client (no cookies)',
+      args: '--extractor-args "youtube:player_client=ios"',
+      format: 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best'
+    },
+    {
+      name: 'Android client (no cookies)',
+      args: '--extractor-args "youtube:player_client=android"',
+      format: 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best'
+    },
+    {
+      name: 'mweb client (no cookies)',
+      args: '--extractor-args "youtube:player_client=mweb"',
+      format: 'best[ext=mp4]/best'
+    }
+  ];
+
+  // Try without cookies first
+  for (const strategy of strategiesWithoutCookies) {
+    try {
+      console.log(`Trying: ${strategy.name}`);
+      const result = await executeYtDlpCommand(url, strategy.args, strategy.format, null);
+      if (result) {
+        console.log(`✓ Success with ${strategy.name}`);
+        return result;
+      }
+    } catch (e) {
+      console.log(`${strategy.name} failed:`, e.message);
+    }
+  }
+
+  // Strategy 2: If cookies available, try WITH cookies
+  if (hasCookies) {
+    const strategiesWithCookies = [
+      {
+        name: 'iOS client (with cookies)',
+        args: '--extractor-args "youtube:player_client=ios"',
+        format: 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best'
+      },
+      {
+        name: 'Android client (with cookies)',
+        args: '--extractor-args "youtube:player_client=android"',
+        format: 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best'
+      },
+      {
+        name: 'Default web (with cookies)',
+        args: '',
+        format: 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best'
+      }
+    ];
+
+    for (const strategy of strategiesWithCookies) {
+      try {
+        console.log(`Trying: ${strategy.name}`);
+        const result = await executeYtDlpCommand(url, strategy.args, strategy.format, cookieFile);
+        if (result) {
+          console.log(`✓ Success with ${strategy.name}`);
+          return result;
+        }
+      } catch (e) {
+        console.log(`${strategy.name} failed:`, e.message);
+      }
+    }
+  }
+
+  throw new Error('All YouTube extraction strategies failed');
+}
+
+// Execute yt-dlp command with robust configuration
+async function executeYtDlpCommand(url, extractorArgs, formatString, cookieFile) {
+  // Build command with production-ready flags
+  const baseFlags = [
+    '--no-check-certificate',
+    '--skip-download',
+    '--dump-json',
+    '--no-warnings',
+    '--force-ipv4',  // Render compatibility
+    '--no-playlist',  // Single video only
+    '--extractor-args "youtube:skip=dash"',  // Skip DASH manifest (signature issues)
+    '--merge-output-format mp4'  // Force MP4 output
+  ];
+
+  // Add cookies if provided
+  if (cookieFile) {
+    baseFlags.push(`--cookies ${cookieFile}`);
+  }
+
+  // Add extractor args if provided
+  if (extractorArgs) {
+    baseFlags.push(extractorArgs);
+  }
+
+  // Add format selection with fallbacks
+  if (formatString) {
+    baseFlags.push(`--format "${formatString}"`);
+  }
+
+  const command = `yt-dlp ${baseFlags.join(' ')} "${url}"`;
+  
+  try {
+    const { stdout, stderr } = await execAsync(command, {
+      timeout: 30000,
+      maxBuffer: 10 * 1024 * 1024
+    });
+
+    // Check for errors in stderr
+    if (stderr && (stderr.includes('ERROR') || stderr.includes('Sign in to confirm'))) {
+      throw new Error(stderr);
+    }
+
+    if (!stdout || stdout.trim().length === 0) {
+      throw new Error('No output from yt-dlp');
+    }
+
+    const data = JSON.parse(stdout);
+    
+    // Validate we got usable data
+    if (!data.formats || data.formats.length === 0) {
+      throw new Error('No formats available');
+    }
+
+    return formatYtDlpResponse(data, url);
+  } catch (error) {
+    // Re-throw with cleaned error message
+    const errorMsg = error.message || 'Unknown error';
+    if (errorMsg.includes('Requested format is not available')) {
+      throw new Error('Format unavailable - trying next strategy');
+    }
+    throw error;
+  }
+}
+
+// Extract from generic (non-YouTube) sites
+async function extractGenericSite(url) {
+  const formatStrategies = [
+    'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best',
+    'best[ext=mp4]/best',
+    'best'
+  ];
+
+  for (const format of formatStrategies) {
+    try {
+      console.log(`Trying format: ${format}`);
+      const command = `yt-dlp --no-check-certificate --skip-download --dump-json --no-warnings --force-ipv4 --merge-output-format mp4 --format "${format}" "${url}"`;
+      
+      const { stdout, stderr } = await execAsync(command, {
+        timeout: 30000,
+        maxBuffer: 10 * 1024 * 1024
+      });
+
+      if (stdout && !stderr.includes('ERROR')) {
+        const data = JSON.parse(stdout);
+        console.log('✓ Generic extraction success! Title:', data.title);
+        return formatYtDlpResponse(data, url);
+      }
+    } catch (e) {
+      console.log(`Format ${format} failed, trying next...`);
+      continue;
+    }
+  }
+
+  throw new Error('All format strategies failed for generic site');
+}
+
 function formatYtDlpResponse(data, url) {
-  // Extract formats
-  const videoFormats = (data.formats || [])
+  // Handle both merged and separate video/audio formats
+  const allFormats = data.formats || [];
+  
+  // Get combined video+audio formats (preferred)
+  const combinedFormats = allFormats
     .filter(f => f.vcodec !== 'none' && f.acodec !== 'none' && f.url)
-    .sort((a, b) => (b.height || 0) - (a.height || 0))
-    .slice(0, 5);
+    .sort((a, b) => (b.height || 0) - (a.height || 0));
 
-  const audioFormats = (data.formats || [])
+  // Get video-only formats
+  const videoOnlyFormats = allFormats
+    .filter(f => f.vcodec !== 'none' && f.acodec === 'none' && f.url)
+    .sort((a, b) => (b.height || 0) - (a.height || 0));
+
+  // Get audio-only formats
+  const audioFormats = allFormats
     .filter(f => f.vcodec === 'none' && f.acodec !== 'none' && f.url)
-    .sort((a, b) => (b.abr || 0) - (a.abr || 0))
-    .slice(0, 3);
+    .sort((a, b) => (b.abr || 0) - (a.abr || 0));
 
-  const qualities = videoFormats.map(f => ({
-    quality: `${f.height}p`,
+  // Prefer combined formats, fallback to video-only
+  const videoFormats = combinedFormats.length > 0 ? combinedFormats : videoOnlyFormats;
+
+  // Build quality list (top 5 qualities)
+  const qualities = videoFormats.slice(0, 5).map(f => ({
+    quality: f.height ? `${f.height}p` : (f.format_note || 'Unknown'),
     format: f.ext || 'mp4',
-    size: f.filesize ? formatBytes(f.filesize) : 'Unknown',
+    size: f.filesize ? formatBytes(f.filesize) : (f.filesize_approx ? formatBytes(f.filesize_approx) : 'Unknown'),
+    url: f.url,
+    hasAudio: f.acodec !== 'none',
+    hasVideo: f.vcodec !== 'none'
+  }));
+
+  // Build audio quality list (top 3)
+  const audioQualities = audioFormats.slice(0, 3).map(f => ({
+    quality: f.abr ? `${Math.round(f.abr)}kbps` : (f.format_note || '128kbps'),
+    format: f.ext || 'mp3',
+    size: f.filesize ? formatBytes(f.filesize) : (f.filesize_approx ? formatBytes(f.filesize_approx) : 'Unknown'),
     url: f.url
   }));
 
-  const audioQualities = audioFormats.map(f => ({
-    quality: `${Math.round(f.abr || 128)}kbps`,
-    format: f.ext || 'mp3',
-    size: f.filesize ? formatBytes(f.filesize) : 'Unknown',
-    url: f.url
-  }));
+  // Fallback if no formats found
+  if (qualities.length === 0 && data.url) {
+    qualities.push({
+      quality: '720p',
+      format: 'mp4',
+      size: 'Unknown',
+      url: data.url,
+      hasAudio: true,
+      hasVideo: true
+    });
+  }
 
   return {
     title: data.title || 'Video',
     thumbnail: data.thumbnail || data.thumbnails?.[0]?.url || 'https://via.placeholder.com/640x360',
     duration: data.duration ? formatDuration(data.duration) : '0:00',
-    qualities: qualities.length > 0 ? qualities : [
-      { quality: '720p', format: 'mp4', size: 'Unknown', url: data.url }
-    ],
+    qualities: qualities,
     audioFormats: audioQualities,
-    platform: detectPlatform(url)
+    platform: detectPlatform(url),
+    extractionMethod: 'yt-dlp'
   };
 }
 
