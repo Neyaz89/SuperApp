@@ -108,15 +108,17 @@ async function extractYouTubeRobust(url) {
   const hasCookies = fs.existsSync(cookieFile);
   
   if (!hasCookies) {
-    throw new Error('YouTube requires cookies - please add cookies.txt file');
+    console.log('⚠️ No cookies.txt found - YouTube may fail due to bot detection');
+  } else {
+    console.log('✓ Using Python yt-dlp library with cookies');
   }
-
-  console.log('✓ Using Python yt-dlp library with cookies');
 
   try {
     // Use Python script for better control
     const pythonScript = '/app/ytdlp_extract.py';
-    const command = `python3 ${pythonScript} "${url}" "${cookieFile}"`;
+    const command = hasCookies 
+      ? `python3 ${pythonScript} "${url}" "${cookieFile}"`
+      : `python3 ${pythonScript} "${url}"`;
     
     console.log('Running Python yt-dlp...');
     
@@ -132,15 +134,16 @@ async function extractYouTubeRobust(url) {
 
     const result = JSON.parse(stdout);
     
-    if (!result.success) {
-      throw new Error(result.error || 'Python extraction failed');
+    // Check if extraction failed (new format check)
+    if (result.error || !result.qualities || result.qualities.length === 0) {
+      throw new Error(result.error || 'No formats available');
     }
 
-    console.log(`✓ SUCCESS with ${result.extractor} client!`);
-    console.log(`✓ Got ${result.formats.length} formats for: ${result.title}`);
+    console.log(`✓ SUCCESS with ${result.extractionMethod} client!`);
+    console.log(`✓ Got ${result.qualities.length} video qualities, ${result.audioFormats.length} audio formats`);
     
-    // Convert Python result to our format
-    return formatPythonYtDlpResponse(result, url);
+    // Result is already in correct format
+    return result;
     
   } catch (error) {
     console.error('Python yt-dlp failed:', error.message);
@@ -302,8 +305,28 @@ async function executeYtDlpCommand(url, extractorArgs, cookieFile) {
 async function extractGenericSite(url) {
   console.log('Extracting generic site...');
   
+  const fs = require('fs');
+  const platform = detectPlatform(url);
+  
+  // Check for platform-specific cookies
+  let cookieArg = '';
+  const platformCookies = {
+    'instagram': '/app/cookies/instagram_cookies.txt',
+    'facebook': '/app/cookies/facebook_cookies.txt',
+    'tiktok': '/app/cookies/tiktok_cookies.txt',
+    'twitter': '/app/cookies/twitter_cookies.txt'
+  };
+  
+  if (platformCookies[platform] && fs.existsSync(platformCookies[platform])) {
+    cookieArg = `--cookies ${platformCookies[platform]}`;
+    console.log(`✓ Using ${platform} cookies`);
+  } else if (fs.existsSync('/app/cookies.txt')) {
+    cookieArg = '--cookies /app/cookies.txt';
+    console.log('✓ Using generic cookies');
+  }
+  
   try {
-    const command = `yt-dlp --no-check-certificate --skip-download --dump-json --no-warnings --no-playlist "${url}"`;
+    const command = `yt-dlp --no-check-certificate --skip-download --dump-json --no-warnings --no-playlist ${cookieArg} "${url}"`;
     
     const { stdout, stderr } = await execAsync(command, {
       timeout: 30000,
