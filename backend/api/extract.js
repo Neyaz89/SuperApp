@@ -1,7 +1,6 @@
 const { exec } = require('child_process');
 const { promisify } = require('util');
 const axios = require('axios');
-const ytDlp = require('@distube/yt-dlp');
 
 const execAsync = promisify(exec);
 
@@ -71,22 +70,12 @@ module.exports = async (req, res) => {
 // Method 1: yt-dlp (Supports 1000+ websites) - PRODUCTION READY
 async function extractWithYtDlp(url) {
   try {
-    // Get yt-dlp binary path from npm package
-    let ytDlpPath = 'yt-dlp'; // Default CLI
-    
+    // Check if yt-dlp is installed
     try {
-      ytDlpPath = await ytDlp.getPath();
-      console.log('Using yt-dlp from npm:', ytDlpPath);
-    } catch (e) {
-      console.log('Using system yt-dlp');
-    }
-    
-    // Check if yt-dlp is available
-    try {
-      const { stdout } = await execAsync(`"${ytDlpPath}" --version`, { timeout: 5000 });
+      const { stdout } = await execAsync('yt-dlp --version', { timeout: 5000 });
       console.log('yt-dlp version:', stdout.trim());
     } catch (e) {
-      console.error('yt-dlp not available');
+      console.error('yt-dlp not installed');
       throw new Error('yt-dlp not available');
     }
     
@@ -95,16 +84,16 @@ async function extractWithYtDlp(url) {
     
     // For YouTube, use robust extraction strategy
     if (platform === 'youtube') {
-      return await extractYouTubeRobust(url, ytDlpPath);
+      return await extractYouTubeRobust(url);
     }
     
     // For Terabox, use generic extractor
     if (platform === 'terabox') {
-      return await extractTerabox(url, ytDlpPath);
+      return await extractTerabox(url);
     }
     
     // For non-YouTube sites, use standard extraction with fallback
-    return await extractGenericSite(url, ytDlpPath);
+    return await extractGenericSite(url);
 
   } catch (error) {
     console.error('yt-dlp failed:', error.message);
@@ -160,12 +149,12 @@ async function extractYouTubeRobust(url) {
 }
 
 // Extract from Terabox using yt-dlp generic extractor
-async function extractTerabox(url, ytDlpPath = 'yt-dlp') {
+async function extractTerabox(url) {
   console.log('✓ Trying yt-dlp generic extractor for Terabox');
 
   try {
     // Use yt-dlp's generic extractor - it can handle many sites
-    const command = `"${ytDlpPath}" --no-check-certificate --skip-download --dump-json --no-warnings --no-playlist --force-generic-extractor "${url}"`;
+    const command = `yt-dlp --no-check-certificate --skip-download --dump-json --no-warnings --no-playlist --force-generic-extractor "${url}"`;
     
     console.log('Running yt-dlp generic extractor...');
     
@@ -310,11 +299,11 @@ async function executeYtDlpCommand(url, extractorArgs, cookieFile) {
 }
 
 // Extract from generic (non-YouTube) sites
-async function extractGenericSite(url, ytDlpPath = 'yt-dlp') {
+async function extractGenericSite(url) {
   console.log('Extracting generic site...');
   
   try {
-    const command = `"${ytDlpPath}" --no-check-certificate --skip-download --dump-json --no-warnings --no-playlist "${url}"`;
+    const command = `yt-dlp --no-check-certificate --skip-download --dump-json --no-warnings --no-playlist "${url}"`;
     
     const { stdout, stderr } = await execAsync(command, {
       timeout: 30000,

@@ -1,4 +1,4 @@
-FROM node:18-alpine
+FROM node:20-alpine
 
 # Install yt-dlp and dependencies
 RUN apk add --no-cache \
