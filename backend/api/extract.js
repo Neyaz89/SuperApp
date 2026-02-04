@@ -82,10 +82,89 @@ async function extractWithYtDlp(url) {
     const platform = detectPlatform(url);
     console.log('Extracting from:', platform);
     
-    // Use --flat-playlist to avoid downloading playlists
-    // Use --no-warnings to reduce noise
-    // Use --extractor-args to pass site-specific options
-    const command = `yt-dlp --no-check-certificate --skip-download --dump-json --no-warnings --flat-playlist --format "best" --extractor-args "youtube:player_client=android" "${url}"`;
+    // YouTube-specific bypass using multiple methods
+    if (platform === 'youtube') {
+      // Method 1: Try with iOS client (bypasses bot detection)
+      try {
+        console.log('Trying YouTube with iOS client...');
+        const command = `yt-dlp --no-check-certificate --skip-download --dump-json --no-warnings --extractor-args "youtube:player_client=ios" --format "best" "${url}"`;
+        
+        const { stdout, stderr } = await execAsync(command, {
+          timeout: 30000,
+          maxBuffer: 10 * 1024 * 1024
+        });
+
+        if (stdout && !stderr.includes('ERROR')) {
+          const data = JSON.parse(stdout);
+          console.log('✓ YouTube iOS client success! Title:', data.title);
+          return formatYtDlpResponse(data, url);
+        }
+      } catch (e) {
+        console.log('iOS client failed, trying web client...');
+      }
+
+      // Method 2: Try with web client and user agent
+      try {
+        console.log('Trying YouTube with web client...');
+        const command = `yt-dlp --no-check-certificate --skip-download --dump-json --no-warnings --user-agent "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36" --extractor-args "youtube:player_client=web" --format "best" "${url}"`;
+        
+        const { stdout, stderr } = await execAsync(command, {
+          timeout: 30000,
+          maxBuffer: 10 * 1024 * 1024
+        });
+
+        if (stdout && !stderr.includes('ERROR')) {
+          const data = JSON.parse(stdout);
+          console.log('✓ YouTube web client success! Title:', data.title);
+          return formatYtDlpResponse(data, url);
+        }
+      } catch (e) {
+        console.log('Web client failed, trying embed method...');
+      }
+
+      // Method 3: Try with embed player
+      try {
+        console.log('Trying YouTube with embed...');
+        const command = `yt-dlp --no-check-certificate --skip-download --dump-json --no-warnings --extractor-args "youtube:player_client=web_embedded" --format "best" "${url}"`;
+        
+        const { stdout, stderr } = await execAsync(command, {
+          timeout: 30000,
+          maxBuffer: 10 * 1024 * 1024
+        });
+
+        if (stdout && !stderr.includes('ERROR')) {
+          const data = JSON.parse(stdout);
+          console.log('✓ YouTube embed success! Title:', data.title);
+          return formatYtDlpResponse(data, url);
+        }
+      } catch (e) {
+        console.log('Embed failed, trying TV client...');
+      }
+
+      // Method 4: Try with TV client (most reliable)
+      try {
+        console.log('Trying YouTube with TV client...');
+        const command = `yt-dlp --no-check-certificate --skip-download --dump-json --no-warnings --extractor-args "youtube:player_client=tv_embedded" --format "best" "${url}"`;
+        
+        const { stdout, stderr } = await execAsync(command, {
+          timeout: 30000,
+          maxBuffer: 10 * 1024 * 1024
+        });
+
+        if (stdout && !stderr.includes('ERROR')) {
+          const data = JSON.parse(stdout);
+          console.log('✓ YouTube TV client success! Title:', data.title);
+          return formatYtDlpResponse(data, url);
+        }
+      } catch (e) {
+        console.log('All YouTube methods failed');
+      }
+
+      throw new Error('YouTube extraction failed - all methods exhausted');
+    }
+    
+    // For non-YouTube sites, use standard extraction
+    const command = `yt-dlp --no-check-certificate --skip-download --dump-json --no-warnings --format "best" "${url}"`;
     
     console.log('Running yt-dlp...');
     
