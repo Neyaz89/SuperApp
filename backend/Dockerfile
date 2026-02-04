@@ -22,6 +22,9 @@ COPY . .
 # Copy cookies file for YouTube authentication
 COPY cookies.txt /app/cookies.txt
 
+# Make Python script executable
+RUN chmod +x /app/ytdlp_extract.py
+
 # Expose port
 EXPOSE 3000
 

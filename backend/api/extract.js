@@ -96,7 +96,7 @@ async function extractWithYtDlp(url) {
   }
 }
 
-// Robust YouTube extraction with multiple fallback strategies
+// Robust YouTube extraction using Python yt-dlp library
 async function extractYouTubeRobust(url) {
   const fs = require('fs');
   const cookieFile = '/app/cookies.txt';
@@ -106,46 +106,105 @@ async function extractYouTubeRobust(url) {
     throw new Error('YouTube requires cookies - please add cookies.txt file');
   }
 
-  console.log('✓ Using cookies for YouTube extraction');
+  console.log('✓ Using Python yt-dlp library with cookies');
 
-  // Always use cookies - try different player clients
-  const strategies = [
-    {
-      name: 'iOS client',
-      args: '--extractor-args "youtube:player_client=ios"'
-    },
-    {
-      name: 'Android client',
-      args: '--extractor-args "youtube:player_client=android"'
-    },
-    {
-      name: 'mweb client',
-      args: '--extractor-args "youtube:player_client=mweb"'
-    },
-    {
-      name: 'Default web client',
-      args: ''
-    },
-    {
-      name: 'tv_embedded client',
-      args: '--extractor-args "youtube:player_client=tv_embedded"'
-    }
-  ];
+  try {
+    // Use Python script for better control
+    const pythonScript = '/app/ytdlp_extract.py';
+    const command = `python3 ${pythonScript} "${url}" "${cookieFile}"`;
+    
+    console.log('Running Python yt-dlp...');
+    
+    const { stdout, stderr } = await execAsync(command, {
+      timeout: 45000,
+      maxBuffer: 10 * 1024 * 1024
+    });
 
-  for (const strategy of strategies) {
-    try {
-      console.log(`Trying: ${strategy.name} with cookies`);
-      const result = await executeYtDlpCommand(url, strategy.args, cookieFile);
-      if (result) {
-        console.log(`✓ SUCCESS with ${strategy.name}!`);
-        return result;
-      }
-    } catch (e) {
-      console.log(`${strategy.name} failed:`, e.message);
+    if (stderr && stderr.includes('ERROR')) {
+      console.error('Python error:', stderr);
+      throw new Error(stderr);
     }
+
+    const result = JSON.parse(stdout);
+    
+    if (!result.success) {
+      throw new Error(result.error || 'Python extraction failed');
+    }
+
+    console.log(`✓ SUCCESS with ${result.extractor} client!`);
+    console.log(`✓ Got ${result.formats.length} formats for: ${result.title}`);
+    
+    // Convert Python result to our format
+    return formatPythonYtDlpResponse(result, url);
+    
+  } catch (error) {
+    console.error('Python yt-dlp failed:', error.message);
+    throw error;
+  }
+}
+
+// Format Python yt-dlp response
+function formatPythonYtDlpResponse(data, url) {
+  const allFormats = data.formats || [];
+  
+  // Get combined video+audio formats
+  const combinedFormats = allFormats
+    .filter(f => f.vcodec !== 'none' && f.acodec !== 'none' && f.url)
+    .sort((a, b) => (b.height || 0) - (a.height || 0));
+
+  // Get video-only formats
+  const videoOnlyFormats = allFormats
+    .filter(f => f.vcodec !== 'none' && f.acodec === 'none' && f.url)
+    .sort((a, b) => (b.height || 0) - (a.height || 0));
+
+  // Get audio-only formats
+  const audioFormats = allFormats
+    .filter(f => f.vcodec === 'none' && f.acodec !== 'none' && f.url)
+    .sort((a, b) => (b.height || 0) - (a.height || 0));
+
+  // Prefer combined, fallback to video-only
+  const videoFormats = combinedFormats.length > 0 ? combinedFormats : videoOnlyFormats;
+
+  // Build quality list
+  const qualities = videoFormats.slice(0, 5).map(f => ({
+    quality: f.height ? `${f.height}p` : (f.quality || 'Unknown'),
+    format: f.ext || 'mp4',
+    size: f.filesize ? formatBytes(f.filesize) : 'Unknown',
+    url: f.url,
+    hasAudio: f.acodec !== 'none',
+    hasVideo: f.vcodec !== 'none'
+  }));
+
+  // Build audio list
+  const audioQualities = audioFormats.slice(0, 3).map(f => ({
+    quality: f.quality || '128kbps',
+    format: f.ext || 'mp3',
+    size: f.filesize ? formatBytes(f.filesize) : 'Unknown',
+    url: f.url
+  }));
+
+  // Fallback if no formats
+  if (qualities.length === 0 && allFormats.length > 0) {
+    qualities.push({
+      quality: 'best',
+      format: 'mp4',
+      size: 'Unknown',
+      url: allFormats[0].url,
+      hasAudio: true,
+      hasVideo: true
+    });
   }
 
-  throw new Error('All YouTube extraction strategies failed');
+  return {
+    title: data.title || 'Video',
+    thumbnail: data.thumbnail || 'https://via.placeholder.com/640x360',
+    duration: data.duration ? formatDuration(data.duration) : '0:00',
+    qualities: qualities,
+    audioFormats: audioQualities,
+    platform: 'youtube',
+    extractionMethod: 'python-yt-dlp',
+    extractor: data.extractor
+  };
 }
 
 // Execute yt-dlp command with robust configuration
