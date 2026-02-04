@@ -21,11 +21,18 @@ export function detectPlatform(url: string): string | null {
   if (lowerUrl.includes('reddit.com') || lowerUrl.includes('redd.it')) return 'reddit';
   if (lowerUrl.includes('twitch.tv')) return 'twitch';
   if (lowerUrl.includes('soundcloud.com')) return 'soundcloud';
-  if (lowerUrl.includes('terabox.com') || lowerUrl.includes('1024tera.com')) return 'terabox';
+  if (lowerUrl.includes('spotify.com')) return 'spotify';
+  if (lowerUrl.includes('hotstar.com') || lowerUrl.includes('jiocinema.com')) return 'hotstar';
+  if (lowerUrl.includes('terabox.com') || lowerUrl.includes('teraboxapp.com') || lowerUrl.includes('1024tera.com')) return 'terabox';
   if (lowerUrl.includes('streamable.com')) return 'streamable';
   if (lowerUrl.includes('pinterest.com') || lowerUrl.includes('pin.it')) return 'pinterest';
   if (lowerUrl.includes('linkedin.com')) return 'linkedin';
   if (lowerUrl.includes('snapchat.com')) return 'snapchat';
+  if (lowerUrl.includes('tumblr.com')) return 'tumblr';
+  if (lowerUrl.includes('vk.com') || lowerUrl.includes('vk.ru')) return 'vk';
+  if (lowerUrl.includes('bilibili.com')) return 'bilibili';
+  if (lowerUrl.includes('bandcamp.com')) return 'bandcamp';
+  if (lowerUrl.includes('mixcloud.com')) return 'mixcloud';
 
   // Direct media files
   if (lowerUrl.match(/\.(mp4|webm|mov|avi|mkv|mp3|m4a|wav|ogg|flac)$/)) {

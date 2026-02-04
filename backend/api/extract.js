@@ -87,6 +87,11 @@ async function extractWithYtDlp(url) {
       return await extractYouTubeRobust(url);
     }
     
+    // For Terabox, use dedicated Python library
+    if (platform === 'terabox') {
+      return await extractTerabox(url);
+    }
+    
     // For non-YouTube sites, use standard extraction with fallback
     return await extractGenericSite(url);
 
@@ -139,6 +144,78 @@ async function extractYouTubeRobust(url) {
     
   } catch (error) {
     console.error('Python yt-dlp failed:', error.message);
+    throw error;
+  }
+}
+
+// Extract from Terabox using Python library
+async function extractTerabox(url) {
+  const fs = require('fs');
+  
+  // Check for Terabox cookie (can be in environment or file)
+  let teraboxCookie = process.env.TERABOX_COOKIE || '';
+  
+  // Try to read from terabox_cookies.txt if exists
+  const cookieFile = '/app/terabox_cookies.txt';
+  if (fs.existsSync(cookieFile)) {
+    teraboxCookie = fs.readFileSync(cookieFile, 'utf8').trim();
+    console.log('✓ Using Terabox cookies from file');
+  }
+  
+  if (!teraboxCookie) {
+    throw new Error('Terabox requires authentication. Please add TERABOX_COOKIE environment variable or terabox_cookies.txt file');
+  }
+
+  console.log('✓ Using Python TeraboxDL library');
+
+  try {
+    const pythonScript = '/app/terabox_extract.py';
+    const command = `python3 ${pythonScript} "${url}" "${teraboxCookie}"`;
+    
+    console.log('Running Python TeraboxDL...');
+    
+    const { stdout, stderr } = await execAsync(command, {
+      timeout: 30000,
+      maxBuffer: 10 * 1024 * 1024
+    });
+
+    if (stderr && stderr.includes('ERROR')) {
+      console.error('Python error:', stderr);
+      throw new Error(stderr);
+    }
+
+    const result = JSON.parse(stdout);
+    
+    if (!result.success) {
+      throw new Error(result.error || 'Terabox extraction failed');
+    }
+
+    console.log(`✓ SUCCESS! Got file: ${result.title}`);
+    
+    // Convert to our format
+    return {
+      title: result.title || 'Terabox File',
+      thumbnail: result.thumbnail || 'https://via.placeholder.com/640x360',
+      duration: '0:00',
+      qualities: [
+        {
+          quality: 'Original',
+          format: 'mp4',
+          size: result.file_size || 'Unknown',
+          url: result.download_link,
+          hasAudio: true,
+          hasVideo: true,
+          protocol: 'https'
+        }
+      ],
+      audioFormats: [],
+      platform: 'terabox',
+      extractionMethod: 'terabox-python',
+      extractor: result.extractor
+    };
+    
+  } catch (error) {
+    console.error('Terabox extraction failed:', error.message);
     throw error;
   }
 }
@@ -586,6 +663,7 @@ function detectPlatform(url) {
     '9gag': /9gag\.com/,
     bandcamp: /bandcamp\.com/,
     mixcloud: /mixcloud\.com/,
+    terabox: /(?:terabox\.com|teraboxapp\.com|1024tera\.com)/,
     pornhub: /pornhub\.com/,
     xvideos: /xvideos\.com/,
     xhamster: /xhamster\.com/

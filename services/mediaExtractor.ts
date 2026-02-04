@@ -13,8 +13,8 @@ type MediaData = {
   audioFormats: MediaQuality[];
 };
 
-// Your Vercel API URL
-const API_URL = 'https://super-app-blue-pi.vercel.app/api/extract';
+// Your Render API URL with yt-dlp
+const API_URL = 'https://superapp-api-d3y5.onrender.com/api/extract';
 
 export class MediaExtractor {
   async extractMediaInfo(url: string, platform: string): Promise<MediaData> {

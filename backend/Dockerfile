@@ -5,7 +5,7 @@ RUN apk add --no-cache \
     python3 \
     py3-pip \
     ffmpeg \
-    && pip3 install --break-system-packages --no-cache-dir --upgrade yt-dlp
+    && pip3 install --break-system-packages --no-cache-dir --upgrade yt-dlp terabox-downloader
 
 # Set working directory
 WORKDIR /app
@@ -19,11 +19,12 @@ RUN npm install --production
 # Copy application files
 COPY . .
 
-# Copy cookies file for YouTube authentication
+# Copy cookies files for authentication
 COPY cookies.txt /app/cookies.txt
+COPY terabox_cookies.txt /app/terabox_cookies.txt
 
-# Make Python script executable
-RUN chmod +x /app/ytdlp_extract.py
+# Make Python scripts executable
+RUN chmod +x /app/ytdlp_extract.py /app/terabox_extract.py
 
 # Expose port
 EXPOSE 3000

@@ -61,31 +61,17 @@ export default function DownloadScreen() {
       console.log('FileSystem.documentDirectory:', FileSystem.documentDirectory);
       console.log('FileSystem.cacheDirectory:', FileSystem.cacheDirectory);
 
-      // Check if FileSystem is available
-      if (!FileSystem.cacheDirectory && !FileSystem.documentDirectory) {
-        // FileSystem not available - skip download and just mark as complete
-        console.warn('FileSystem not available - skipping actual download');
-        setStatus('FileSystem not available in this build');
-        setProgress(100);
-        
-        // Just mark as complete without actual download
-        setDownloadedFile({
-          uri: selectedQuality.url,
-          type: selectedQuality.type,
-          quality: selectedQuality.quality,
-          format: selectedQuality.format,
-        });
-
-        setTimeout(() => {
-          router.replace('/complete');
-        }, 1000);
-        return;
+      // For Android, use a fallback path if directories are undefined
+      let baseDir = FileSystem.cacheDirectory || FileSystem.documentDirectory;
+      
+      if (!baseDir) {
+        // Fallback for Android when directories are undefined
+        baseDir = 'file:///data/user/0/com.superapp.media/cache/';
+        console.log('Using fallback directory:', baseDir);
       }
 
       setStatus('Starting download...');
       setProgress(5);
-
-      const baseDir = FileSystem.cacheDirectory || FileSystem.documentDirectory;
       const filename = `SuperApp_${Date.now()}.${selectedQuality.format}`;
       const fileUri = baseDir + filename;
 
