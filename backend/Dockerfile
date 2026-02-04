@@ -5,7 +5,7 @@ RUN apk add --no-cache \
     python3 \
     py3-pip \
     ffmpeg \
-    && pip3 install --break-system-packages --no-cache-dir --upgrade yt-dlp terabox-downloader
+    && pip3 install --break-system-packages --no-cache-dir --upgrade yt-dlp
 
 # Set working directory
 WORKDIR /app

@@ -179,12 +179,25 @@ async function extractTerabox(url) {
       maxBuffer: 10 * 1024 * 1024
     });
 
-    if (stderr && stderr.includes('ERROR')) {
-      console.error('Python error:', stderr);
-      throw new Error(stderr);
+    // Log raw output for debugging
+    if (stderr) {
+      console.log('Python stderr:', stderr);
     }
 
-    const result = JSON.parse(stdout);
+    // Try to parse JSON from stdout
+    let result;
+    try {
+      // Clean stdout - remove any non-JSON text
+      const jsonMatch = stdout.match(/\{[\s\S]*\}/);
+      if (!jsonMatch) {
+        throw new Error('No JSON found in Python output');
+      }
+      result = JSON.parse(jsonMatch[0]);
+    } catch (parseError) {
+      console.error('JSON parse error:', parseError.message);
+      console.error('Raw stdout:', stdout.substring(0, 500));
+      throw new Error(`Failed to parse Python output: ${parseError.message}`);
+    }
     
     if (!result.success) {
       throw new Error(result.error || 'Terabox extraction failed');
