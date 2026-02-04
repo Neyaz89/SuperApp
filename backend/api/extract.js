@@ -109,17 +109,17 @@ async function extractYouTubeRobust(url) {
     {
       name: 'iOS client (no cookies)',
       args: '--extractor-args "youtube:player_client=ios"',
-      format: 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best'
+      format: 'best'  // Simplified - let yt-dlp choose
     },
     {
       name: 'Android client (no cookies)',
       args: '--extractor-args "youtube:player_client=android"',
-      format: 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best'
+      format: 'best'  // Simplified - let yt-dlp choose
     },
     {
       name: 'mweb client (no cookies)',
       args: '--extractor-args "youtube:player_client=mweb"',
-      format: 'best[ext=mp4]/best'
+      format: 'best'  // Simplified - let yt-dlp choose
     }
   ];
 
@@ -143,17 +143,17 @@ async function extractYouTubeRobust(url) {
       {
         name: 'iOS client (with cookies)',
         args: '--extractor-args "youtube:player_client=ios"',
-        format: 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best'
+        format: 'best'  // Simplified - let yt-dlp choose
       },
       {
         name: 'Android client (with cookies)',
         args: '--extractor-args "youtube:player_client=android"',
-        format: 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best'
+        format: 'best'  // Simplified - let yt-dlp choose
       },
       {
         name: 'Default web (with cookies)',
         args: '',
-        format: 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best'
+        format: 'best'  // Simplified - let yt-dlp choose
       }
     ];
 
@@ -241,9 +241,7 @@ async function executeYtDlpCommand(url, extractorArgs, formatString, cookieFile)
 // Extract from generic (non-YouTube) sites
 async function extractGenericSite(url) {
   const formatStrategies = [
-    'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best',
-    'best[ext=mp4]/best',
-    'best'
+    'best'  // Simplified - let yt-dlp choose best format
   ];
 
   for (const format of formatStrategies) {
