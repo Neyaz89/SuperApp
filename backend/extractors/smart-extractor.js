@@ -1,7 +1,5 @@
 // Smart Multi-Extractor System - 99% Success Rate
 const { extractWithCobalt } = require('./cobalt-extractor');
-const { extractWithSaveFrom } = require('./savefrom-extractor');
-const { extractYouTubeCustom } = require('./youtube-custom-extractor');
 const { extractInstagramCustom } = require('./instagram-custom-extractor');
 const { extractTikTokCustom } = require('./tiktok-custom-extractor');
 const { spawn } = require('child_process');
@@ -10,10 +8,8 @@ const path = require('path');
 // Extractor configuration with priorities
 const EXTRACTORS = {
   youtube: [
-    { name: 'YouTube Custom API', priority: 1, fn: extractYouTubeCustom },
-    { name: 'yt-dlp', priority: 2, fn: extractWithYtDlp },
-    { name: 'Cobalt', priority: 3, fn: extractWithCobalt },
-    { name: 'SaveFrom', priority: 4, fn: extractWithSaveFrom }
+    { name: 'yt-dlp', priority: 1, fn: extractWithYtDlp },
+    { name: 'Cobalt', priority: 2, fn: extractWithCobalt }
   ],
   instagram: [
     { name: 'Instagram Custom API', priority: 1, fn: extractInstagramCustom },
@@ -27,8 +23,7 @@ const EXTRACTORS = {
   ],
   facebook: [
     { name: 'yt-dlp', priority: 1, fn: extractWithYtDlp },
-    { name: 'Cobalt', priority: 2, fn: extractWithCobalt },
-    { name: 'SaveFrom', priority: 3, fn: extractWithSaveFrom }
+    { name: 'Cobalt', priority: 2, fn: extractWithCobalt }
   ],
   twitter: [
     { name: 'yt-dlp', priority: 1, fn: extractWithYtDlp },
@@ -36,8 +31,11 @@ const EXTRACTORS = {
   ],
   vimeo: [
     { name: 'yt-dlp', priority: 1, fn: extractWithYtDlp },
-    { name: 'SaveFrom', priority: 2, fn: extractWithSaveFrom },
-    { name: 'Cobalt', priority: 3, fn: extractWithCobalt }
+    { name: 'Cobalt', priority: 2, fn: extractWithCobalt }
+  ],
+  snapchat: [
+    { name: 'yt-dlp', priority: 1, fn: extractWithYtDlp },
+    { name: 'Cobalt', priority: 2, fn: extractWithCobalt }
   ],
   default: [
     { name: 'yt-dlp', priority: 1, fn: extractWithYtDlp },

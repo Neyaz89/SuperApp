@@ -12,32 +12,39 @@ async function extractWithCobalt(url) {
       headers: {
         'Accept': 'application/json',
         'Content-Type': 'application/json',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
       },
       body: JSON.stringify({
         url: url,
-        vQuality: '1080',
-        filenamePattern: 'basic',
-        isAudioOnly: false,
-        disableMetadata: false
+        videoQuality: '1080',
+        audioFormat: 'mp3',
+        filenameStyle: 'basic',
+        downloadMode: 'auto'
       }),
       timeout: 15000
     });
 
     if (!response.ok) {
+      const errorText = await response.text();
+      console.error('Cobalt error response:', errorText);
       throw new Error(`Cobalt API returned ${response.status}`);
     }
 
     const data = await response.json();
-    console.log('Cobalt response:', data);
+    console.log('Cobalt response status:', data.status);
 
-    // Cobalt returns different response formats
-    if (data.status === 'error' || data.status === 'rate-limit') {
-      throw new Error(data.text || 'Cobalt extraction failed');
+    // Handle different response types
+    if (data.status === 'error') {
+      throw new Error(data.error?.code || 'Cobalt extraction failed');
     }
 
-    // Success - format the response
-    if (data.status === 'redirect' || data.status === 'stream') {
+    if (data.status === 'redirect' || data.status === 'tunnel') {
       return formatCobaltResponse(data, url);
+    }
+
+    if (data.status === 'picker') {
+      // Multiple media items (like Instagram carousel)
+      return formatCobaltPickerResponse(data, url);
     }
 
     throw new Error('Unexpected Cobalt response format');
@@ -51,7 +58,7 @@ async function extractWithCobalt(url) {
 function formatCobaltResponse(data, originalUrl) {
   const result = {
     title: data.filename || 'Video',
-    thumbnail: data.thumb || 'https://via.placeholder.com/640x360',
+    thumbnail: 'https://via.placeholder.com/640x360',
     duration: 'Unknown',
     qualities: [],
     audioFormats: []
@@ -71,6 +78,12 @@ function formatCobaltResponse(data, originalUrl) {
       size: 'Unknown',
       url: data.url
     });
+    result.qualities.push({
+      quality: '480p',
+      format: 'mp4',
+      size: 'Unknown',
+      url: data.url
+    });
   }
 
   // Audio URL
@@ -84,6 +97,43 @@ function formatCobaltResponse(data, originalUrl) {
   }
 
   console.log('✅ Cobalt extraction successful');
+  return result;
+}
+
+function formatCobaltPickerResponse(data, originalUrl) {
+  const result = {
+    title: 'Media Collection',
+    thumbnail: data.picker?.[0]?.thumb || 'https://via.placeholder.com/640x360',
+    duration: 'Unknown',
+    qualities: [],
+    audioFormats: []
+  };
+
+  // Add all picker items as qualities
+  if (data.picker && Array.isArray(data.picker)) {
+    data.picker.forEach((item, index) => {
+      if (item.url) {
+        result.qualities.push({
+          quality: `Item ${index + 1}`,
+          format: item.type === 'photo' ? 'jpg' : 'mp4',
+          size: 'Unknown',
+          url: item.url
+        });
+      }
+    });
+  }
+
+  // Audio if available
+  if (data.audio) {
+    result.audioFormats.push({
+      quality: '320kbps',
+      format: 'mp3',
+      size: 'Unknown',
+      url: data.audio
+    });
+  }
+
+  console.log('✅ Cobalt picker extraction successful');
   return result;
 }
 
