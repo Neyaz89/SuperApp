@@ -30,13 +30,13 @@ app.get('/', (req, res) => {
   });
 });
 
-// Import extraction handler - Multi-Extractor System v3.0
-const extractHandler = require('./api/extract-v2');
+// Import extraction handler - Using proven v1 system (works in production)
+const extractHandler = require('./api/extract');
 app.post('/api/extract', extractHandler);
 
-// Keep v1 as fallback endpoint
-const extractHandlerV1 = require('./api/extract');
-app.post('/api/extract/v1', extractHandlerV1);
+// v2 available for testing
+const extractHandlerV2 = require('./api/extract-v2');
+app.post('/api/extract/v2', extractHandlerV2);
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {

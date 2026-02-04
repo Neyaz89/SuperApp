@@ -101,7 +101,17 @@ async function extractWithYtDlp(url, platform) {
       ? path.join(__dirname, '..', 'terabox_extract.py')
       : path.join(__dirname, '..', 'ytdlp_extract.py');
     
-    const pythonProcess = spawn('python', [pythonScript, url]);
+    const cookiesFile = path.join(__dirname, '..', 'cookies.txt');
+    const args = [pythonScript, url];
+    
+    // Add cookies file if it exists
+    const fs = require('fs');
+    if (fs.existsSync(cookiesFile)) {
+      args.push(cookiesFile);
+      console.log('🍪 Using cookies file');
+    }
+    
+    const pythonProcess = spawn('python3', args);
     
     let output = '';
     let errorOutput = '';
@@ -123,23 +133,25 @@ async function extractWithYtDlp(url, platform) {
       try {
         const result = JSON.parse(output);
         
-        if (result.error) {
-          reject(new Error(result.error));
+        // Check if extraction failed
+        if (result.error || (result.qualities && result.qualities.length === 0)) {
+          reject(new Error(result.error || 'No formats available'));
           return;
         }
         
         console.log('✅ yt-dlp extraction successful');
+        console.log(`📊 Got ${result.qualities.length} video qualities, ${result.audioFormats.length} audio formats`);
         resolve(result);
       } catch (error) {
-        reject(new Error('Failed to parse yt-dlp output'));
+        reject(new Error('Failed to parse yt-dlp output: ' + error.message));
       }
     });
     
-    // Timeout after 20 seconds
+    // Timeout after 30 seconds
     setTimeout(() => {
       pythonProcess.kill();
       reject(new Error('yt-dlp timeout'));
-    }, 20000);
+    }, 30000);
   });
 }
 
