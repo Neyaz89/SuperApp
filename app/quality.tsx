@@ -27,8 +27,50 @@ export default function QualityScreen() {
 
   const currentOptions = mediaType === 'video' ? mediaInfo.qualities : mediaInfo.audioFormats;
 
+  // Validate current options exist
+  if (!currentOptions || currentOptions.length === 0) {
+    return (
+      <View style={[styles.container, { backgroundColor: theme.background }]}>
+        <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
+        
+        <View style={[styles.header, { borderBottomColor: theme.border }]}>
+          <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+            <Text style={[styles.backText, { color: theme.primary }]}>← Back</Text>
+          </TouchableOpacity>
+          <Text style={[styles.headerTitle, { color: theme.text }]}>Select Quality</Text>
+          <View style={{ width: 60 }} />
+        </View>
+
+        <View style={styles.content}>
+          <View style={styles.emptyContainer}>
+            <Text style={[styles.emptyText, { color: theme.textSecondary }]}>
+              No {mediaType} formats available
+            </Text>
+            <TouchableOpacity
+              style={[styles.switchButton, { backgroundColor: theme.primary }]}
+              onPress={() => setMediaType(mediaType === 'video' ? 'audio' : 'video')}
+            >
+              <Text style={styles.switchButtonText}>
+                Try {mediaType === 'video' ? 'Audio' : 'Video'}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </View>
+    );
+  }
+
+  // Ensure selectedIndex is valid
+  const safeSelectedIndex = Math.min(selectedIndex, currentOptions.length - 1);
+
   const handleDownload = () => {
-    const selected = currentOptions[selectedIndex];
+    if (!currentOptions || currentOptions.length === 0) {
+      return;
+    }
+    const selected = currentOptions[safeSelectedIndex];
+    if (!selected) {
+      return;
+    }
     setSelectedQuality({
       ...selected,
       type: mediaType,
@@ -116,13 +158,13 @@ export default function QualityScreen() {
                   style={[
                     styles.radio,
                     { borderColor: theme.border },
-                    selectedIndex === index && {
+                    safeSelectedIndex === index && {
                       borderColor: theme.primary,
                       backgroundColor: theme.primary,
                     },
                   ]}
                 >
-                  {selectedIndex === index && <View style={styles.radioInner} />}
+                  {safeSelectedIndex === index && <View style={styles.radioInner} />}
                 </View>
                 <View>
                   <Text style={[styles.qualityText, { color: theme.text }]}>
@@ -149,7 +191,7 @@ export default function QualityScreen() {
             activeOpacity={0.8}
           >
             <Text style={styles.downloadButtonText}>
-              Download {currentOptions[selectedIndex].quality}
+              Download {currentOptions[safeSelectedIndex]?.quality || 'Video'}
             </Text>
           </TouchableOpacity>
         </View>
@@ -277,5 +319,27 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 17,
     fontWeight: '700',
+  },
+  emptyContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 40,
+  },
+  emptyText: {
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: 20,
+    textAlign: 'center',
+  },
+  switchButton: {
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 12,
+  },
+  switchButtonText: {
+    color: '#FFFFFF',
+    fontSize: 15,
+    fontWeight: '600',
   },
 });
