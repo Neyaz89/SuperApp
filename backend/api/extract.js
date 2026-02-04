@@ -46,14 +46,14 @@ module.exports = async (req, res) => {
       console.log('yt-dlp failed, trying API fallbacks...');
     }
 
-    // Fallback to API methods
+    // Fallback to API methods - don't catch errors, let them propagate
     const fallbackResult = await extractWithFallbackAPIs(url);
     return res.json(fallbackResult);
 
   } catch (error) {
     console.error('Extraction error:', error.message);
     
-    // Return graceful fallback
+    // Return graceful fallback only if ALL methods failed
     return res.json({
       title: 'Video',
       thumbnail: 'https://i.ytimg.com/vi/dQw4w9WgXcQ/maxresdefault.jpg',
