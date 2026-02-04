@@ -82,25 +82,20 @@ async function extractWithYtDlp(url) {
     const platform = detectPlatform(url);
     console.log('Extracting from:', platform);
     
-    // For YouTube, try to get cookies from yt-cookies API
+    // For YouTube, use cookies file
     let cookiesArg = '';
     if (platform === 'youtube') {
-      try {
-        console.log('Fetching YouTube cookies from API...');
-        const cookieResponse = await axios.get('https://yt-cookies.vercel.app/api/cookies', {
-          timeout: 5000
-        });
-        
-        if (cookieResponse.data && cookieResponse.data.cookies) {
-          // Save cookies to temp file
-          const fs = require('fs');
-          const cookieFile = '/tmp/yt-cookies.txt';
-          fs.writeFileSync(cookieFile, cookieResponse.data.cookies);
-          cookiesArg = `--cookies ${cookieFile}`;
-          console.log('✓ Cookies loaded successfully');
-        }
-      } catch (e) {
-        console.log('Cookie API failed, trying without cookies:', e.message);
+      const fs = require('fs');
+      const cookieFile = '/app/cookies.txt'; // Docker path
+      
+      // Check if cookies file exists
+      if (fs.existsSync(cookieFile)) {
+        cookiesArg = `--cookies ${cookieFile}`;
+        console.log('✓ Using cookies file');
+      } else {
+        console.log('⚠️ No cookies file found, using visitor_data method');
+        // Use visitor_data as fallback (no cookies needed)
+        cookiesArg = '--extractor-args "youtubetab:skip=webpage" --extractor-args "youtube:player_skip=webpage,configs"';
       }
     }
     

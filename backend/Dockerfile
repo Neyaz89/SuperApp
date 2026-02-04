@@ -19,6 +19,9 @@ RUN npm install --production
 # Copy application files
 COPY . .
 
+# Copy cookies file for YouTube authentication
+COPY cookies.txt /app/cookies.txt
+
 # Expose port
 EXPOSE 3000
 
