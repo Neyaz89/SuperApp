@@ -72,28 +72,42 @@ async function extractWithYtDlp(url) {
   try {
     // Check if yt-dlp is installed
     try {
-      await execAsync('yt-dlp --version', { timeout: 5000 });
+      const { stdout } = await execAsync('yt-dlp --version', { timeout: 5000 });
+      console.log('yt-dlp version:', stdout.trim());
     } catch (e) {
       console.error('yt-dlp not installed');
       throw new Error('yt-dlp not available');
     }
     
-    // Try direct extraction (works for most sites except YouTube)
-    const command = `yt-dlp --no-check-certificate --skip-download --dump-json --format "best" "${url}"`;
+    const platform = detectPlatform(url);
+    console.log('Extracting from:', platform);
     
-    console.log('Running yt-dlp for:', detectPlatform(url));
+    // Use --flat-playlist to avoid downloading playlists
+    // Use --no-warnings to reduce noise
+    // Use --extractor-args to pass site-specific options
+    const command = `yt-dlp --no-check-certificate --skip-download --dump-json --no-warnings --flat-playlist --format "best" --extractor-args "youtube:player_client=android" "${url}"`;
+    
+    console.log('Running yt-dlp...');
     
     const { stdout, stderr } = await execAsync(command, {
-      timeout: 25000,
+      timeout: 30000,
       maxBuffer: 10 * 1024 * 1024
     });
 
-    if (!stdout || stderr.includes('ERROR')) {
-      throw new Error('yt-dlp extraction failed');
+    if (!stdout) {
+      console.error('No output from yt-dlp');
+      console.error('stderr:', stderr);
+      throw new Error('No output from yt-dlp');
+    }
+
+    if (stderr && stderr.includes('ERROR')) {
+      console.error('yt-dlp error:', stderr);
+      throw new Error('yt-dlp extraction failed: ' + stderr);
     }
 
     const data = JSON.parse(stdout);
     console.log('✓ yt-dlp success! Title:', data.title);
+    console.log('Formats found:', data.formats?.length || 0);
     
     return formatYtDlpResponse(data, url);
 
