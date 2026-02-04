@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import * as Clipboard from 'expo-clipboard';
+import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useDownload } from '@/contexts/DownloadContext';
 import { detectPlatform, validateUrl } from '@/utils/urlParser';
@@ -30,6 +31,9 @@ export default function HomeScreen() {
   const [error, setError] = useState('');
   const fadeAnim = React.useRef(new Animated.Value(0)).current;
   const slideAnim = React.useRef(new Animated.Value(50)).current;
+  const bounceAnim = React.useRef(new Animated.Value(1)).current;
+  const rotateAnim = React.useRef(new Animated.Value(0)).current;
+  const pulseAnim = React.useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
     Animated.parallel([
@@ -38,12 +42,38 @@ export default function HomeScreen() {
         duration: 800,
         useNativeDriver: true,
       }),
-      Animated.timing(slideAnim, {
+      Animated.spring(slideAnim, {
         toValue: 0,
-        duration: 600,
+        friction: 8,
+        tension: 40,
         useNativeDriver: true,
       }),
     ]).start();
+
+    // Continuous rotation animation
+    Animated.loop(
+      Animated.timing(rotateAnim, {
+        toValue: 1,
+        duration: 3000,
+        useNativeDriver: true,
+      })
+    ).start();
+
+    // Pulse animation for circles
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulseAnim, {
+          toValue: 1.2,
+          duration: 2000,
+          useNativeDriver: true,
+        }),
+        Animated.timing(pulseAnim, {
+          toValue: 1,
+          duration: 2000,
+          useNativeDriver: true,
+        }),
+      ])
+    ).start();
 
     checkClipboard();
   }, []);
@@ -70,6 +100,21 @@ export default function HomeScreen() {
   };
 
   const handleAnalyze = async () => {
+    // Bounce animation on button press
+    Animated.sequence([
+      Animated.timing(bounceAnim, {
+        toValue: 0.95,
+        duration: 100,
+        useNativeDriver: true,
+      }),
+      Animated.spring(bounceAnim, {
+        toValue: 1,
+        friction: 3,
+        tension: 40,
+        useNativeDriver: true,
+      }),
+    ]).start();
+
     try {
       if (!url.trim()) {
         setError('Please enter a valid URL');
@@ -128,9 +173,34 @@ export default function HomeScreen() {
     }
   };
 
+  const spin = rotateAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['0deg', '360deg'],
+  });
+
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
       <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
+      
+      {/* Animated gradient circles */}
+      <Animated.View
+        style={[
+          styles.decorCircle1,
+          { transform: [{ rotate: spin }, { scale: pulseAnim }] },
+        ]}
+      />
+      <Animated.View
+        style={[
+          styles.decorCircle2,
+          { transform: [{ rotate: spin }] },
+        ]}
+      />
+      <Animated.View
+        style={[
+          styles.decorCircle3,
+          { transform: [{ rotate: spin }] },
+        ]}
+      />
       
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -146,18 +216,35 @@ export default function HomeScreen() {
           ]}
         >
           <View style={styles.header}>
-            <Text style={[styles.logo, { color: theme.primary }]}>SuperApp</Text>
+            <Animated.View style={{ transform: [{ scale: bounceAnim }] }}>
+              <Text style={[styles.logo, { color: theme.primary }]}>
+                SuperApp
+              </Text>
+              <View style={styles.logoUnderline} />
+            </Animated.View>
             <Text style={[styles.tagline, { color: theme.textSecondary }]}>
-              Download videos & audio from anywhere
+              Download from 1000+ sites 🔥
             </Text>
           </View>
 
           <View style={styles.inputContainer}>
-            <View style={[styles.inputWrapper, { backgroundColor: theme.card, borderColor: error ? '#FF3B30' : theme.border }]}>
+            <View
+              style={[
+                styles.inputWrapper,
+                {
+                  backgroundColor: theme.card,
+                  borderColor: error ? '#FF6B6B' : 'transparent',
+                  shadowColor: error ? '#FF6B6B' : theme.primary,
+                },
+              ]}
+            >
+              <View style={styles.inputIconContainer}>
+                <Ionicons name="link-outline" size={24} color={theme.primary} />
+              </View>
               <TextInput
                 style={[styles.input, { color: theme.text }]}
-                placeholder="Paste video or audio link here..."
-                placeholderTextColor={theme.textSecondary}
+                placeholder="Paste link here..."
+                placeholderTextColor={theme.textSecondary + '80'}
                 value={url}
                 onChangeText={(text) => {
                   setUrl(text);
@@ -167,59 +254,100 @@ export default function HomeScreen() {
                 autoCorrect={false}
                 keyboardType="url"
               />
-              <TouchableOpacity onPress={handlePaste} style={styles.pasteButton}>
-                <Text style={[styles.pasteText, { color: theme.primary }]}>Paste</Text>
+              <TouchableOpacity
+                onPress={handlePaste}
+                style={[styles.pasteButton, { backgroundColor: theme.primary }]}
+                activeOpacity={0.7}
+              >
+                <Ionicons name="clipboard-outline" size={22} color="#FFFFFF" />
               </TouchableOpacity>
             </View>
             
             {error ? (
-              <Text style={styles.errorText}>{error}</Text>
+              <Animated.View style={[styles.errorContainer, { backgroundColor: '#FF6B6B15' }]}>
+                <Ionicons name="alert-circle" size={20} color="#FF6B6B" />
+                <Text style={styles.errorText}>{error}</Text>
+              </Animated.View>
             ) : null}
 
             <View style={styles.platformsContainer}>
               <Text style={[styles.platformsLabel, { color: theme.textSecondary }]}>
-                Supported: YouTube, Instagram, Facebook, Twitter, TikTok, Vimeo, Reddit, Twitch, Dailymotion, Terabox & more
+                Supported Platforms
               </Text>
               <View style={styles.platformIcons}>
-                <PlatformIcon platform="youtube" size={32} />
-                <PlatformIcon platform="instagram" size={32} />
-                <PlatformIcon platform="facebook" size={32} />
-                <PlatformIcon platform="twitter" size={32} />
-                <PlatformIcon platform="vimeo" size={32} />
+                <View style={[styles.platformBadge, { backgroundColor: '#FF000015' }]}>
+                  <PlatformIcon platform="youtube" size={28} />
+                </View>
+                <View style={[styles.platformBadge, { backgroundColor: '#E136B615' }]}>
+                  <PlatformIcon platform="instagram" size={28} />
+                </View>
+                <View style={[styles.platformBadge, { backgroundColor: '#1877F215' }]}>
+                  <PlatformIcon platform="facebook" size={28} />
+                </View>
+                <View style={[styles.platformBadge, { backgroundColor: '#1DA1F215' }]}>
+                  <PlatformIcon platform="twitter" size={28} />
+                </View>
+                <View style={[styles.platformBadge, { backgroundColor: '#00ADEF15' }]}>
+                  <PlatformIcon platform="vimeo" size={28} />
+                </View>
               </View>
             </View>
           </View>
 
-          <TouchableOpacity
-            style={[
-              styles.analyzeButton,
-              { backgroundColor: theme.primary },
-              loading && styles.analyzeButtonDisabled,
-            ]}
-            onPress={handleAnalyze}
-            disabled={loading}
-            activeOpacity={0.8}
-          >
-            {loading ? (
-              <ActivityIndicator color="#FFFFFF" />
-            ) : (
-              <Text style={styles.analyzeButtonText}>Analyze Media</Text>
-            )}
-          </TouchableOpacity>
+          <Animated.View style={{ transform: [{ scale: bounceAnim }] }}>
+            <TouchableOpacity
+              style={[
+                styles.analyzeButton,
+                loading && styles.analyzeButtonDisabled,
+              ]}
+              onPress={handleAnalyze}
+              disabled={loading}
+              activeOpacity={0.85}
+            >
+              <LinearGradient
+                colors={isDark ? ['#4ECDC4', '#3AAFA9'] : ['#FF6B6B', '#EE5A6F']}
+                style={styles.analyzeGradient}
+              >
+                {loading ? (
+                  <View style={styles.loadingContainer}>
+                    <ActivityIndicator color="#FFFFFF" size="small" />
+                    <Text style={styles.analyzeButtonText}>  Analyzing...</Text>
+                  </View>
+                ) : (
+                  <>
+                    <Text style={styles.analyzeButtonText}>Analyze</Text>
+                    <View style={styles.analyzeIcon}>
+                      <Ionicons name="rocket" size={20} color="#FFFFFF" />
+                    </View>
+                  </>
+                )}
+              </LinearGradient>
+            </TouchableOpacity>
+          </Animated.View>
 
-          <TouchableOpacity
-            style={styles.settingsButton}
-            onPress={() => router.push('/settings')}
-          >
-            <Text style={[styles.settingsText, { color: theme.textSecondary }]}>Settings</Text>
-          </TouchableOpacity>
+          <View style={styles.bottomButtons}>
+            <TouchableOpacity
+              style={[styles.secondaryButton, { backgroundColor: isDark ? '#1A1A2E' : '#F8F9FA' }]}
+              onPress={() => router.push('/games')}
+              activeOpacity={0.7}
+            >
+              <View style={[styles.secondaryButtonIcon, { backgroundColor: '#4ECDC420' }]}>
+                <Ionicons name="game-controller" size={20} color="#4ECDC4" />
+              </View>
+              <Text style={[styles.secondaryButtonText, { color: theme.text }]}>Games</Text>
+            </TouchableOpacity>
 
-          <TouchableOpacity
-            style={[styles.gamesButton, { backgroundColor: theme.primary }]}
-            onPress={() => router.push('/games')}
-          >
-            <Text style={styles.gamesButtonText}>🎮 Play Games</Text>
-          </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.secondaryButton, { backgroundColor: isDark ? '#1A1A2E' : '#F8F9FA' }]}
+              onPress={() => router.push('/settings')}
+              activeOpacity={0.7}
+            >
+              <View style={[styles.secondaryButtonIcon, { backgroundColor: '#FFE66D20' }]}>
+                <Ionicons name="settings" size={20} color="#FFB800" />
+              </View>
+              <Text style={[styles.secondaryButtonText, { color: theme.text }]}>Settings</Text>
+            </TouchableOpacity>
+          </View>
         </Animated.View>
       </KeyboardAvoidingView>
     </View>
@@ -230,120 +358,210 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
+  decorCircle1: {
+    position: 'absolute',
+    width: 250,
+    height: 250,
+    borderRadius: 125,
+    backgroundColor: '#FF6B6B15',
+    top: -100,
+    right: -80,
+  },
+  decorCircle2: {
+    position: 'absolute',
+    width: 180,
+    height: 180,
+    borderRadius: 90,
+    backgroundColor: '#4ECDC415',
+    bottom: 150,
+    left: -90,
+  },
+  decorCircle3: {
+    position: 'absolute',
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    backgroundColor: '#FFE66D15',
+    top: 200,
+    left: 30,
+  },
   keyboardView: {
     flex: 1,
   },
   content: {
     flex: 1,
     paddingHorizontal: 24,
-    paddingTop: 80,
+    paddingTop: 70,
     paddingBottom: 40,
   },
   header: {
     alignItems: 'center',
-    marginBottom: 60,
+    marginBottom: 40,
   },
   logo: {
     fontSize: 42,
-    fontWeight: '800',
+    fontWeight: '900',
     letterSpacing: -1,
     marginBottom: 8,
   },
+  logoUnderline: {
+    width: 60,
+    height: 4,
+    backgroundColor: '#FF6B6B',
+    borderRadius: 2,
+    alignSelf: 'center',
+  },
   tagline: {
     fontSize: 16,
-    fontWeight: '400',
+    fontWeight: '600',
     textAlign: 'center',
+    marginTop: 12,
   },
   inputContainer: {
-    marginBottom: 32,
+    marginBottom: 24,
   },
   inputWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderRadius: 16,
+    borderRadius: 28,
     borderWidth: 2,
-    paddingHorizontal: 16,
+    paddingHorizontal: 6,
+    paddingVertical: 6,
+    height: 68,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.12,
+    shadowRadius: 16,
+    elevation: 8,
+  },
+  inputIconContainer: {
+    width: 56,
     height: 56,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 3,
+    borderRadius: 28,
+    backgroundColor: '#FF6B6B10',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   input: {
     flex: 1,
     fontSize: 16,
-    fontWeight: '500',
+    fontWeight: '600',
+    paddingHorizontal: 16,
   },
   pasteButton: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#FF6B6B',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
   },
-  pasteText: {
-    fontSize: 15,
-    fontWeight: '600',
+  errorContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 16,
+    gap: 10,
   },
   errorText: {
-    color: '#FF3B30',
+    color: '#FF6B6B',
     fontSize: 14,
-    marginTop: 8,
-    marginLeft: 4,
+    fontWeight: '600',
+    flex: 1,
   },
   platformsContainer: {
-    marginTop: 24,
+    marginTop: 32,
     alignItems: 'center',
   },
   platformsLabel: {
-    fontSize: 14,
-    marginBottom: 12,
+    fontSize: 13,
+    fontWeight: '700',
+    marginBottom: 16,
+    textTransform: 'uppercase',
+    letterSpacing: 1,
   },
   platformIcons: {
     flexDirection: 'row',
-    gap: 16,
+    gap: 12,
   },
-  analyzeButton: {
-    height: 56,
-    borderRadius: 16,
+  platformBadge: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 12,
-    elevation: 5,
+  },
+  analyzeButton: {
+    height: 68,
+    borderRadius: 34,
+    overflow: 'hidden',
+    shadowColor: '#FF6B6B',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.35,
+    shadowRadius: 20,
+    elevation: 10,
+    marginBottom: 20,
+  },
+  analyzeGradient: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 12,
   },
   analyzeButtonDisabled: {
     opacity: 0.6,
   },
+  loadingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
   analyzeButtonText: {
     color: '#FFFFFF',
-    fontSize: 18,
-    fontWeight: '700',
+    fontSize: 20,
+    fontWeight: '800',
+    letterSpacing: 0.5,
   },
-  settingsButton: {
-    marginTop: 24,
-    alignItems: 'center',
-    padding: 12,
-  },
-  settingsText: {
-    fontSize: 16,
-    fontWeight: '500',
-  },
-  gamesButton: {
-    marginTop: 16,
-    height: 56,
-    borderRadius: 16,
+  analyzeIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.2)',
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  bottomButtons: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  secondaryButton: {
+    flex: 1,
+    height: 64,
+    borderRadius: 32,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
+    shadowOpacity: 0.08,
     shadowRadius: 12,
-    elevation: 5,
+    elevation: 3,
   },
-  gamesButtonText: {
-    color: '#FFFFFF',
-    fontSize: 18,
+  secondaryButtonIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  secondaryButtonText: {
+    fontSize: 16,
     fontWeight: '700',
   },
 });

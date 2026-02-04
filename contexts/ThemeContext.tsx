@@ -19,20 +19,20 @@ type ThemeContextType = {
 
 const lightTheme: Theme = {
   background: '#FFFFFF',
-  card: '#F5F5F7',
-  text: '#000000',
-  textSecondary: '#6E6E73',
-  primary: '#007AFF',
-  border: '#E5E5EA',
+  card: '#F8F9FA',
+  text: '#2D2D2D',
+  textSecondary: '#95A5A6',
+  primary: '#FF6B6B',
+  border: '#E8E8E8',
 };
 
 const darkTheme: Theme = {
-  background: '#000000',
-  card: '#1C1C1E',
+  background: '#0F0F1E',
+  card: '#1A1A2E',
   text: '#FFFFFF',
-  textSecondary: '#98989D',
-  primary: '#0A84FF',
-  border: '#38383A',
+  textSecondary: '#95A5A6',
+  primary: '#4ECDC4',
+  border: '#2C2C3E',
 };
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);

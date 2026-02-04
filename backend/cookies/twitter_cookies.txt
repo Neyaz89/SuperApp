@@ -1,0 +1,2 @@
+# Netscape HTTP Cookie File
+# Add your Twitter/X cookies here if needed

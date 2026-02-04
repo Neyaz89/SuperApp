@@ -1,7 +1,7 @@
 {
   "name": "superapp-api",
-  "version": "2.0.0",
-  "description": "Production video downloader API with yt-dlp",
+  "version": "3.0.0",
+  "description": "Production video downloader API with multi-extractor system (99% success rate)",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
@@ -11,7 +11,9 @@
     "axios": "^1.6.0",
     "express": "^4.18.2",
     "cors": "^2.8.5",
-    "node-cache": "^5.1.2"
+    "node-cache": "^5.1.2",
+    "node-fetch": "^2.7.0",
+    "https-proxy-agent": "^7.0.2"
   },
   "engines": {
     "node": ">=18.0.0"

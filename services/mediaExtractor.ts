@@ -13,7 +13,7 @@ type MediaData = {
   audioFormats: MediaQuality[];
 };
 
-// Your Render API URL with yt-dlp
+// Render API URL - Production Backend
 const API_URL = 'https://superapp-api-d3y5.onrender.com/api/extract';
 
 export class MediaExtractor {
