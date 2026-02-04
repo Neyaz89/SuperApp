@@ -294,18 +294,29 @@ function formatYtDlpResponse(data, url) {
   // Handle both merged and separate video/audio formats
   const allFormats = data.formats || [];
   
+  // Filter out HLS/DASH manifests - prefer direct URLs
+  const directFormats = allFormats.filter(f => 
+    f.url && 
+    !f.url.includes('.m3u8') && 
+    !f.url.includes('.mpd') &&
+    !f.url.includes('manifest')
+  );
+  
+  // If no direct formats, use all formats (will include manifests)
+  const usableFormats = directFormats.length > 0 ? directFormats : allFormats;
+  
   // Get combined video+audio formats (preferred)
-  const combinedFormats = allFormats
+  const combinedFormats = usableFormats
     .filter(f => f.vcodec !== 'none' && f.acodec !== 'none' && f.url)
     .sort((a, b) => (b.height || 0) - (a.height || 0));
 
   // Get video-only formats
-  const videoOnlyFormats = allFormats
+  const videoOnlyFormats = usableFormats
     .filter(f => f.vcodec !== 'none' && f.acodec === 'none' && f.url)
     .sort((a, b) => (b.height || 0) - (a.height || 0));
 
   // Get audio-only formats
-  const audioFormats = allFormats
+  const audioFormats = usableFormats
     .filter(f => f.vcodec === 'none' && f.acodec !== 'none' && f.url)
     .sort((a, b) => (b.abr || 0) - (a.abr || 0));
 
@@ -319,7 +330,8 @@ function formatYtDlpResponse(data, url) {
     size: f.filesize ? formatBytes(f.filesize) : (f.filesize_approx ? formatBytes(f.filesize_approx) : 'Unknown'),
     url: f.url,
     hasAudio: f.acodec !== 'none',
-    hasVideo: f.vcodec !== 'none'
+    hasVideo: f.vcodec !== 'none',
+    protocol: f.protocol || 'https'
   }));
 
   // Build audio quality list (top 3)
@@ -338,8 +350,15 @@ function formatYtDlpResponse(data, url) {
       size: 'Unknown',
       url: data.url,
       hasAudio: true,
-      hasVideo: true
+      hasVideo: true,
+      protocol: 'https'
     });
+  }
+
+  // Log format info for debugging
+  console.log(`Formats: ${qualities.length} video, ${audioQualities.length} audio`);
+  if (qualities.length > 0) {
+    console.log(`Best quality: ${qualities[0].quality} (${qualities[0].protocol})`);
   }
 
   return {
