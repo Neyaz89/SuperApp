@@ -104,7 +104,7 @@ async function extractWithYtDlp(url) {
       // Method 1: android_vr with cookies (BEST)
       try {
         console.log('Method 1: Trying android_vr with cookies...');
-        const command = `yt-dlp --no-check-certificate --skip-download --dump-json --no-warnings ${cookiesArg} --extractor-args "youtube:player_client=android_vr" --format "best" "${url}"`;
+        const command = `yt-dlp --no-check-certificate --skip-download --dump-json --no-warnings ${cookiesArg} --extractor-args "youtube:player_client=android_vr" "${url}"`;
         
         const { stdout, stderr } = await execAsync(command, {
           timeout: 30000,
@@ -123,7 +123,7 @@ async function extractWithYtDlp(url) {
       // Method 2: tv_embedded with cookies
       try {
         console.log('Method 2: Trying tv_embedded with cookies...');
-        const command = `yt-dlp --no-check-certificate --skip-download --dump-json --no-warnings ${cookiesArg} --extractor-args "youtube:player_client=tv_embedded" --format "best" "${url}"`;
+        const command = `yt-dlp --no-check-certificate --skip-download --dump-json --no-warnings ${cookiesArg} --extractor-args "youtube:player_client=tv_embedded" "${url}"`;
         
         const { stdout, stderr } = await execAsync(command, {
           timeout: 30000,
@@ -142,7 +142,7 @@ async function extractWithYtDlp(url) {
       // Method 3: ios with cookies and user agent
       try {
         console.log('Method 3: Trying iOS with cookies...');
-        const command = `yt-dlp --no-check-certificate --skip-download --dump-json --no-warnings ${cookiesArg} --user-agent "com.google.ios.youtube/19.29.1 (iPhone16,2; U; CPU iOS 17_5_1 like Mac OS X;)" --extractor-args "youtube:player_client=ios" --format "best" "${url}"`;
+        const command = `yt-dlp --no-check-certificate --skip-download --dump-json --no-warnings ${cookiesArg} --user-agent "com.google.ios.youtube/19.29.1 (iPhone16,2; U; CPU iOS 17_5_1 like Mac OS X;)" --extractor-args "youtube:player_client=ios" "${url}"`;
         
         const { stdout, stderr } = await execAsync(command, {
           timeout: 30000,
