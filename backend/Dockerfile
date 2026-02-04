@@ -1,5 +1,6 @@
 FROM node:20-alpine
 
+# Updated: 2026-02-04 - YouTube PO Token fix
 # Install yt-dlp and dependencies
 RUN apk add --no-cache \
     python3 \
