@@ -272,43 +272,35 @@ async function extractTeraboxScraper(url) {
       }
     }
     
-    // Step 3: Make API call with all extracted tokens
-    console.log('📡 Making API call...');
-    
-    // Build API URL with all available parameters
-    const apiParams = new URLSearchParams({
-      app_id: '250528',
-      web: '1',
-      channel: 'dubox',
-      clienttype: '0',
-      page: '1',
-      num: '20',
-      by: 'name',
-      order: 'asc',
-      shorturl: shareId,
-      root: '1'
-    });
-    
-    if (jsToken) apiParams.set('jsToken', jsToken);
-    if (bdstoken) apiParams.set('bdstoken', bdstoken);
-    if (logid) apiParams.set('dp-logid', logid);
-    
-    const apiUrl = `https://www.terabox.app/share/list?${apiParams.toString()}`;
-    
-    const apiResponse = await fetch(apiUrl, {
-      method: 'GET',
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
-        'Accept': 'application/json, text/plain, */*',
-        'Accept-Language': 'en-US,en;q=0.9',
-        'Referer': pageUrl,
-        'Origin': 'https://www.terabox.app',
-        'Sec-Fetch-Dest': 'empty',
-        'Sec-Fetch-Mode': 'cors',
-        'Sec-Fetch-Site': 'same-origin'
-      },
-      timeout: 20000
-    });
+    // If we have jsToken, we can try to get the download link directly from the page
+    // by making a proper API call that looks like a real browser
+    if (jsToken) {
+      console.log('📡 Making API call with jsToken...');
+      
+      // Build API URL - use exact format that browser uses
+      const apiUrl = `https://www.terabox.app/share/list?app_id=250528&web=1&channel=dubox&clienttype=0&jsToken=${jsToken}&page=1&num=20&by=name&order=asc&site_referer=&shorturl=${shareId}&root=1`;
+      
+      console.log('API URL:', apiUrl);
+      
+      const apiResponse = await fetch(apiUrl, {
+        method: 'GET',
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
+          'Accept': 'application/json, text/plain, */*',
+          'Accept-Language': 'en-US,en;q=0.9',
+          'Accept-Encoding': 'gzip, deflate, br',
+          'Referer': pageUrl,
+          'Origin': 'https://www.terabox.app',
+          'Connection': 'keep-alive',
+          'Sec-Fetch-Dest': 'empty',
+          'Sec-Fetch-Mode': 'cors',
+          'Sec-Fetch-Site': 'same-origin',
+          'Sec-Ch-Ua': '"Not A(Brand";v="99", "Google Chrome";v="121", "Chromium";v="121"',
+          'Sec-Ch-Ua-Mobile': '?0',
+          'Sec-Ch-Ua-Platform': '"Windows"'
+        },
+        timeout: 20000
+      });
     
     if (!apiResponse.ok) {
       throw new Error(`API returned ${apiResponse.status}`);
@@ -378,6 +370,7 @@ async function extractTeraboxScraper(url) {
       platform: 'terabox',
       extractionMethod: 'Terabox Scraper'
     };
+    }
     
   } catch (error) {
     console.log('❌ Terabox Scraper failed:', error.message);
