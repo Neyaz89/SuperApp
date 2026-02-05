@@ -151,20 +151,30 @@ async function extractYouTubeRobust(url) {
   }
 }
 
-// Extract from Terabox using Python script with cookies
+// Extract from Terabox using API extractor
 async function extractTerabox(url) {
+  console.log('🔵 Terabox: Starting extraction...');
+  
+  // Try API extractor first (most reliable)
+  try {
+    const { extractTeraboxAPI } = require('../extractors/terabox-api-extractor');
+    const result = await extractTeraboxAPI(url);
+    console.log('✅ Terabox API extraction successful!');
+    return result;
+  } catch (e) {
+    console.log('Terabox API failed, trying Python extractor...', e.message);
+  }
+
+  // Try Python extractor v2
   const fs = require('fs');
   const cookieFile = '/app/terabox_cookies.txt';
   const hasCookies = fs.existsSync(cookieFile);
-  
-  console.log('🔵 Terabox: Starting extraction...');
   
   if (hasCookies) {
     console.log('✓ Using Terabox cookies');
   }
 
   try {
-    // Try Python Terabox extractor v2 (uses terabox-downloader package)
     const pythonScript = '/app/terabox_extract_v2.py';
     const cookieString = hasCookies ? fs.readFileSync(cookieFile, 'utf8').trim() : '';
     const command = cookieString 
@@ -185,20 +195,17 @@ async function extractTerabox(url) {
 
     const result = JSON.parse(stdout);
     
-    // Check if extraction succeeded
     if (result.qualities && result.qualities.length > 0) {
       console.log('✅ Terabox Python v2 extraction successful!');
-      console.log('Title:', result.title);
       return result;
     } else if (result.error) {
-      console.log('⚠️ Terabox Python v2 failed:', result.error);
       throw new Error(result.error);
     } else {
       throw new Error('No download link found');
     }
     
   } catch (e) {
-    console.log('Python Terabox v2 failed, trying yt-dlp generic extractor...', e.message);
+    console.log('Python Terabox v2 failed, trying yt-dlp...', e.message);
   }
 
   // Fallback: Try yt-dlp generic extractor
@@ -214,7 +221,7 @@ async function extractTerabox(url) {
 
     if (stdout && !stderr.includes('ERROR')) {
       const data = JSON.parse(stdout);
-      console.log('✓ yt-dlp generic extraction success! Title:', data.title);
+      console.log('✓ yt-dlp generic extraction success!');
       return formatYtDlpResponse(data, url);
     }
   } catch (e) {
