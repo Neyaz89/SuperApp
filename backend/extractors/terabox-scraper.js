@@ -51,8 +51,67 @@ async function extractTeraboxScraper(url) {
     const html = await pageResponse.text();
     console.log('📄 Got page HTML, length:', html.length);
     
-    // Step 2: Extract data from HTML
-    // Look for various data points that Terabox embeds
+    // Debug: Log a sample of the HTML to see what we're working with
+    const htmlSample = html.substring(0, 5000);
+    console.log('HTML sample (first 500 chars):', htmlSample.substring(0, 500));
+    
+    // Look for any script tags with data
+    const scriptMatches = html.match(/<script[^>]*>([\s\S]*?)<\/script>/gi);
+    if (scriptMatches) {
+      console.log(`Found ${scriptMatches.length} script tags`);
+      
+      // Check each script for useful data
+      for (let i = 0; i < Math.min(scriptMatches.length, 10); i++) {
+        const script = scriptMatches[i];
+        if (script.includes('locals') || script.includes('jsToken') || script.includes('file_list')) {
+          console.log(`Script ${i} contains useful data (length: ${script.length})`);
+          
+          // Try to extract the entire locals object
+          const localsMatch = script.match(/locals\s*=\s*({[\s\S]*?});/);
+          if (localsMatch) {
+            try {
+              const locals = JSON.parse(localsMatch[1]);
+              console.log('✅ Successfully parsed locals object');
+              console.log('Locals keys:', Object.keys(locals));
+              
+              if (locals.file_list && locals.file_list.length > 0) {
+                const fileInfo = locals.file_list[0];
+                console.log('📄 File:', fileInfo.server_filename);
+                console.log('Has dlink:', !!fileInfo.dlink);
+                
+                if (fileInfo.dlink) {
+                  console.log('✅ SUCCESS! Found download link in HTML');
+                  
+                  const fileSize = fileInfo.size || 0;
+                  const sizeMB = (fileSize / (1024 * 1024)).toFixed(2);
+                  
+                  return {
+                    title: fileInfo.server_filename || 'Terabox File',
+                    thumbnail: fileInfo.thumbs?.url3 || fileInfo.thumbs?.url2 || 'https://via.placeholder.com/640x360',
+                    duration: '0:00',
+                    qualities: [
+                      {
+                        quality: 'Original',
+                        format: fileInfo.server_filename?.split('.').pop() || 'mp4',
+                        size: `${sizeMB} MB`,
+                        url: fileInfo.dlink
+                      }
+                    ],
+                    audioFormats: [],
+                    platform: 'terabox',
+                    extractionMethod: 'Terabox HTML Direct'
+                  };
+                }
+              }
+            } catch (e) {
+              console.log('Failed to parse locals:', e.message);
+            }
+          }
+        }
+      }
+    }
+    
+    // Step 2: Extract tokens with better patterns
     
     // Extract jsToken
     let jsToken = '';
@@ -97,6 +156,47 @@ async function extractTeraboxScraper(url) {
     }
     
     console.log('Tokens:', { jsToken: !!jsToken, bdstoken: !!bdstoken, logid: !!logid });
+    
+    // Try to extract file info directly from HTML first
+    const fileInfoMatch = html.match(/window\.locals\s*=\s*({[\s\S]*?});/);
+    if (fileInfoMatch) {
+      try {
+        const locals = JSON.parse(fileInfoMatch[1]);
+        console.log('✅ Found locals data in HTML');
+        
+        if (locals.file_list && locals.file_list.length > 0) {
+          const fileInfo = locals.file_list[0];
+          console.log('📄 File from HTML:', fileInfo.server_filename);
+          
+          // If we have dlink in the HTML, use it directly
+          if (fileInfo.dlink) {
+            console.log('✅ SUCCESS! Found download link in HTML');
+            
+            const fileSize = fileInfo.size || 0;
+            const sizeMB = (fileSize / (1024 * 1024)).toFixed(2);
+            
+            return {
+              title: fileInfo.server_filename || 'Terabox File',
+              thumbnail: fileInfo.thumbs?.url3 || fileInfo.thumbs?.url2 || 'https://via.placeholder.com/640x360',
+              duration: '0:00',
+              qualities: [
+                {
+                  quality: 'Original',
+                  format: fileInfo.server_filename?.split('.').pop() || 'mp4',
+                  size: `${sizeMB} MB`,
+                  url: fileInfo.dlink
+                }
+              ],
+              audioFormats: [],
+              platform: 'terabox',
+              extractionMethod: 'Terabox HTML Scraper'
+            };
+          }
+        }
+      } catch (e) {
+        console.log('⚠️ Failed to parse locals:', e.message);
+      }
+    }
     
     // Step 3: Make API call with all extracted tokens
     console.log('📡 Making API call...');
