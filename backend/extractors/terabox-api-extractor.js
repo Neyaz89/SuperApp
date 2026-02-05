@@ -32,11 +32,28 @@ async function extractTeraboxAPI(url) {
   let ndus_cookie = '';
   
   if (fs.existsSync(cookieFile)) {
-    const cookies = fs.readFileSync(cookieFile, 'utf8');
-    const ndusMatch = cookies.match(/ndus=([^;]+)/);
-    if (ndusMatch) {
-      ndus_cookie = ndusMatch[1];
-      console.log('✅ Found ndus cookie');
+    const cookieContent = fs.readFileSync(cookieFile, 'utf8');
+    
+    // Parse Netscape cookie format
+    const lines = cookieContent.split('\n');
+    for (const line of lines) {
+      if (line.startsWith('#') || line.trim() === '') continue;
+      
+      const parts = line.split('\t');
+      if (parts.length >= 7) {
+        const cookieName = parts[5];
+        const cookieValue = parts[6];
+        
+        if (cookieName === 'ndus') {
+          ndus_cookie = cookieValue;
+          console.log('✅ Found ndus cookie');
+          break;
+        }
+      }
+    }
+    
+    if (!ndus_cookie) {
+      console.log('⚠️ No ndus cookie found in file');
     }
   }
   
