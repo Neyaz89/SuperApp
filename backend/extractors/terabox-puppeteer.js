@@ -66,10 +66,31 @@ async function extractTeraboxPuppeteer(url) {
     console.log('✅ Page loaded');
     
     // Wait for the page to fully load and execute JavaScript
-    await new Promise(resolve => setTimeout(resolve, 3000));
+    // Try to wait for a specific element that indicates data is loaded
+    try {
+      await page.waitForSelector('.file-name, .filename, [class*="file"]', { timeout: 10000 });
+      console.log('✅ File element found');
+    } catch (e) {
+      console.log('⚠️ File element not found, continuing anyway...');
+    }
+    
+    // Additional wait for JavaScript execution
+    await new Promise(resolve => setTimeout(resolve, 2000));
     
     // Extract file data from window.locals
     console.log('🔍 Extracting file data...');
+    
+    // Debug: Check what's available in the page
+    const pageDebug = await page.evaluate(() => {
+      return {
+        hasLocals: typeof window.locals !== 'undefined',
+        localsKeys: window.locals ? Object.keys(window.locals) : [],
+        hasFileList: window.locals && window.locals.file_list ? true : false,
+        fileCount: window.locals && window.locals.file_list ? window.locals.file_list.length : 0
+      };
+    });
+    
+    console.log('📊 Page debug:', JSON.stringify(pageDebug));
     
     const fileData = await page.evaluate(() => {
       // Try to get data from window.locals

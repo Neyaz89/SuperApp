@@ -11,6 +11,8 @@ type MediaData = {
   duration: string;
   qualities: MediaQuality[];
   audioFormats: MediaQuality[];
+  useWebView?: boolean; // Flag to indicate WebView extraction needed
+  webViewUrl?: string; // URL to load in WebView
 };
 
 // Render API URL - Production Backend
@@ -23,7 +25,21 @@ export class MediaExtractor {
     console.log('Platform:', platform);
     console.log('API URL:', API_URL);
 
-    // Try API extraction with retries
+    // For Terabox, use WebView extraction (client-side)
+    if (platform === 'terabox' || url.includes('terabox')) {
+      console.log('🔵 Terabox detected - using WebView extraction');
+      return {
+        title: 'Terabox File',
+        thumbnail: 'https://via.placeholder.com/640x360',
+        duration: '0:00',
+        qualities: [],
+        audioFormats: [],
+        useWebView: true,
+        webViewUrl: url,
+      };
+    }
+
+    // Try API extraction with retries for other platforms
     for (let attempt = 1; attempt <= 3; attempt++) {
       try {
         console.log(`Attempt ${attempt}/3: Calling API...`);
@@ -105,6 +121,7 @@ export class MediaExtractor {
       twitter: 'Twitter Video',
       vimeo: 'Vimeo Video',
       tiktok: 'TikTok Video',
+      terabox: 'Terabox File',
     };
 
     return {
