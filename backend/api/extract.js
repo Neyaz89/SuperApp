@@ -155,7 +155,17 @@ async function extractYouTubeRobust(url) {
 async function extractTerabox(url) {
   console.log('🔵 Terabox: Starting extraction...');
   
-  // Try proxy extractor first (most reliable for public shares)
+  // Try scraper first (works like a browser, no cookies needed)
+  try {
+    const { extractTeraboxScraper } = require('../extractors/terabox-scraper');
+    const result = await extractTeraboxScraper(url);
+    console.log('✅ Terabox Scraper extraction successful!');
+    return result;
+  } catch (e) {
+    console.log('Terabox Scraper failed, trying proxy...', e.message);
+  }
+  
+  // Try proxy extractor (for public shares)
   try {
     const { extractTeraboxProxy } = require('../extractors/terabox-proxy-extractor');
     const result = await extractTeraboxProxy(url);
