@@ -51,46 +51,75 @@ async function extractTeraboxScraper(url) {
     const html = await pageResponse.text();
     console.log('📄 Got page HTML, length:', html.length);
     
-    // Step 2: Extract data from HTML (Terabox embeds JSON in the page)
-    // Look for window.jsToken, window.locals, or embedded JSON
+    // Step 2: Extract data from HTML
+    // Look for various data points that Terabox embeds
     
-    // Try to find jsToken
-    const jsTokenMatch = html.match(/window\.jsToken\s*=\s*["']([^"']+)["']/);
-    const jsToken = jsTokenMatch ? jsTokenMatch[1] : '';
+    // Extract jsToken
+    let jsToken = '';
+    const jsTokenPatterns = [
+      /window\.jsToken\s*=\s*["']([^"']+)["']/,
+      /jsToken["']?\s*:\s*["']([^"']+)["']/,
+      /"jsToken"\s*:\s*"([^"]+)"/
+    ];
     
-    // Try to find share data
-    const shareDataMatch = html.match(/window\.share\s*=\s*({[^;]+})/);
-    let shareData = null;
-    
-    if (shareDataMatch) {
-      try {
-        shareData = JSON.parse(shareDataMatch[1]);
-        console.log('✅ Found share data in HTML');
-      } catch (e) {
-        console.log('⚠️ Failed to parse share data');
+    for (const pattern of jsTokenPatterns) {
+      const match = html.match(pattern);
+      if (match) {
+        jsToken = match[1];
+        console.log('✅ Found jsToken');
+        break;
       }
     }
     
-    // Try to find file list data
-    const fileListMatch = html.match(/window\.locals\s*=\s*({[^;]+})/);
-    let fileList = null;
+    // Extract bdstoken
+    let bdstoken = '';
+    const bdstokenPatterns = [
+      /window\.bdstoken\s*=\s*["']([^"']+)["']/,
+      /bdstoken["']?\s*:\s*["']([^"']+)["']/,
+      /"bdstoken"\s*:\s*"([^"]+)"/
+    ];
     
-    if (fileListMatch) {
-      try {
-        const locals = JSON.parse(fileListMatch[1]);
-        if (locals.file_list) {
-          fileList = locals.file_list;
-          console.log('✅ Found file list in HTML');
-        }
-      } catch (e) {
-        console.log('⚠️ Failed to parse file list');
+    for (const pattern of bdstokenPatterns) {
+      const match = html.match(pattern);
+      if (match) {
+        bdstoken = match[1];
+        console.log('✅ Found bdstoken');
+        break;
       }
     }
     
-    // Step 3: Make API call with extracted data
+    // Extract logid
+    let logid = '';
+    const logidMatch = html.match(/logid["']?\s*:\s*["']([^"']+)["']/);
+    if (logidMatch) {
+      logid = logidMatch[1];
+      console.log('✅ Found logid');
+    }
+    
+    console.log('Tokens:', { jsToken: !!jsToken, bdstoken: !!bdstoken, logid: !!logid });
+    
+    // Step 3: Make API call with all extracted tokens
     console.log('📡 Making API call...');
     
-    const apiUrl = `https://www.terabox.app/share/list?app_id=250528&web=1&channel=dubox&clienttype=0&jsToken=${jsToken}&page=1&num=20&by=name&order=asc&shorturl=${shareId}&root=1`;
+    // Build API URL with all available parameters
+    const apiParams = new URLSearchParams({
+      app_id: '250528',
+      web: '1',
+      channel: 'dubox',
+      clienttype: '0',
+      page: '1',
+      num: '20',
+      by: 'name',
+      order: 'asc',
+      shorturl: shareId,
+      root: '1'
+    });
+    
+    if (jsToken) apiParams.set('jsToken', jsToken);
+    if (bdstoken) apiParams.set('bdstoken', bdstoken);
+    if (logid) apiParams.set('dp-logid', logid);
+    
+    const apiUrl = `https://www.terabox.app/share/list?${apiParams.toString()}`;
     
     const apiResponse = await fetch(apiUrl, {
       method: 'GET',
@@ -99,7 +128,10 @@ async function extractTeraboxScraper(url) {
         'Accept': 'application/json, text/plain, */*',
         'Accept-Language': 'en-US,en;q=0.9',
         'Referer': pageUrl,
-        'Origin': 'https://www.terabox.app'
+        'Origin': 'https://www.terabox.app',
+        'Sec-Fetch-Dest': 'empty',
+        'Sec-Fetch-Mode': 'cors',
+        'Sec-Fetch-Site': 'same-origin'
       },
       timeout: 20000
     });
