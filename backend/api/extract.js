@@ -151,12 +151,71 @@ async function extractYouTubeRobust(url) {
   }
 }
 
-// Extract from Terabox using yt-dlp generic extractor
+// Extract from Terabox using Python script with cookies
 async function extractTerabox(url) {
-  console.log('✓ Trying yt-dlp generic extractor for Terabox');
+  const fs = require('fs');
+  const cookieFile = '/app/terabox_cookies.txt';
+  const hasCookies = fs.existsSync(cookieFile);
+  
+  console.log('🔵 Terabox: Starting extraction...');
+  
+  if (hasCookies) {
+    console.log('✓ Using Terabox cookies');
+  }
 
   try {
-    // Use yt-dlp's generic extractor - it can handle many sites
+    // Try Python Terabox extractor first (uses Cloudflare Worker API)
+    const pythonScript = '/app/terabox_extract.py';
+    const cookieString = hasCookies ? fs.readFileSync(cookieFile, 'utf8').trim() : '';
+    const command = cookieString 
+      ? `python3 ${pythonScript} "${url}" "${cookieString}"`
+      : `python3 ${pythonScript} "${url}"`;
+    
+    console.log('Running Python Terabox extractor...');
+    
+    const { stdout, stderr } = await execAsync(command, {
+      timeout: 30000,
+      maxBuffer: 10 * 1024 * 1024
+    });
+
+    if (stderr && stderr.includes('ERROR')) {
+      console.error('Python error:', stderr);
+      throw new Error(stderr);
+    }
+
+    const result = JSON.parse(stdout);
+    
+    if (result.success && result.download_link) {
+      console.log('✅ Terabox Python extraction successful!');
+      console.log('Title:', result.title);
+      
+      // Format response
+      return {
+        title: result.title || 'Terabox File',
+        thumbnail: result.thumbnail || 'https://via.placeholder.com/640x360',
+        duration: '0:00',
+        qualities: [
+          {
+            quality: 'Original',
+            format: 'mp4',
+            size: result.file_size || 'Unknown',
+            url: result.download_link
+          }
+        ],
+        audioFormats: [],
+        platform: 'terabox',
+        extractionMethod: result.extractor || 'terabox-python'
+      };
+    } else {
+      throw new Error(result.error || 'Terabox Python extraction failed');
+    }
+    
+  } catch (e) {
+    console.log('Python Terabox failed, trying yt-dlp generic extractor...', e.message);
+  }
+
+  // Fallback: Try yt-dlp generic extractor
+  try {
     const command = `yt-dlp --no-check-certificate --skip-download --dump-json --no-warnings --no-playlist --force-generic-extractor "${url}"`;
     
     console.log('Running yt-dlp generic extractor...');
@@ -168,7 +227,7 @@ async function extractTerabox(url) {
 
     if (stdout && !stderr.includes('ERROR')) {
       const data = JSON.parse(stdout);
-      console.log('✓ Generic extraction success! Title:', data.title);
+      console.log('✓ yt-dlp generic extraction success! Title:', data.title);
       return formatYtDlpResponse(data, url);
     }
   } catch (e) {
