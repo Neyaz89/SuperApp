@@ -125,20 +125,38 @@ async function extractTeraboxScraper(url) {
     
     // Step 2: Extract tokens with better patterns
     
-    // Extract jsToken
+    // Extract jsToken from eval/decodeURIComponent pattern
     let jsToken = '';
-    const jsTokenPatterns = [
-      /window\.jsToken\s*=\s*["']([^"']+)["']/,
-      /jsToken["']?\s*:\s*["']([^"']+)["']/,
-      /"jsToken"\s*:\s*"([^"]+)"/
-    ];
+    const evalMatch = html.match(/eval\(decodeURIComponent\(`([^`]+)`\)\)/);
+    if (evalMatch) {
+      try {
+        const decoded = decodeURIComponent(evalMatch[1]);
+        console.log('Decoded eval:', decoded.substring(0, 200));
+        const tokenMatch = decoded.match(/jsToken\s*=\s*["']([^"']+)["']/);
+        if (tokenMatch) {
+          jsToken = tokenMatch[1];
+          console.log('✅ Found jsToken from eval:', jsToken.substring(0, 50) + '...');
+        }
+      } catch (e) {
+        console.log('Failed to decode eval:', e.message);
+      }
+    }
     
-    for (const pattern of jsTokenPatterns) {
-      const match = html.match(pattern);
-      if (match) {
-        jsToken = match[1];
-        console.log('✅ Found jsToken');
-        break;
+    // Fallback: Try direct patterns
+    if (!jsToken) {
+      const jsTokenPatterns = [
+        /window\.jsToken\s*=\s*["']([^"']+)["']/,
+        /jsToken["']?\s*:\s*["']([^"']+)["']/,
+        /"jsToken"\s*:\s*"([^"]+)"/
+      ];
+      
+      for (const pattern of jsTokenPatterns) {
+        const match = html.match(pattern);
+        if (match) {
+          jsToken = match[1];
+          console.log('✅ Found jsToken');
+          break;
+        }
       }
     }
     
