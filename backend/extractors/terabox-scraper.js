@@ -65,46 +65,58 @@ async function extractTeraboxScraper(url) {
         const script = scriptMatches[i];
         if (script.includes('locals') || script.includes('jsToken') || script.includes('file_list')) {
           console.log(`Script ${i} contains useful data (length: ${script.length})`);
+          console.log(`Script ${i} content:`, script.substring(0, 500));
           
-          // Try to extract the entire locals object
-          const localsMatch = script.match(/locals\s*=\s*({[\s\S]*?});/);
-          if (localsMatch) {
-            try {
-              const locals = JSON.parse(localsMatch[1]);
-              console.log('✅ Successfully parsed locals object');
-              console.log('Locals keys:', Object.keys(locals));
-              
-              if (locals.file_list && locals.file_list.length > 0) {
-                const fileInfo = locals.file_list[0];
-                console.log('📄 File:', fileInfo.server_filename);
-                console.log('Has dlink:', !!fileInfo.dlink);
+          // Try multiple patterns to extract locals
+          const patterns = [
+            /locals\s*=\s*({[\s\S]*?});/,
+            /locals\s*=\s*({[\s\S]*?})\s*;/,
+            /var\s+locals\s*=\s*({[\s\S]*?});/,
+            /window\.locals\s*=\s*({[\s\S]*?});/
+          ];
+          
+          for (const pattern of patterns) {
+            const localsMatch = script.match(pattern);
+            if (localsMatch) {
+              console.log('✅ Matched locals with pattern:', pattern.source.substring(0, 50));
+              try {
+                const locals = JSON.parse(localsMatch[1]);
+                console.log('✅ Successfully parsed locals object');
+                console.log('Locals keys:', Object.keys(locals));
                 
-                if (fileInfo.dlink) {
-                  console.log('✅ SUCCESS! Found download link in HTML');
+                if (locals.file_list && locals.file_list.length > 0) {
+                  const fileInfo = locals.file_list[0];
+                  console.log('📄 File:', fileInfo.server_filename);
+                  console.log('Has dlink:', !!fileInfo.dlink);
                   
-                  const fileSize = fileInfo.size || 0;
-                  const sizeMB = (fileSize / (1024 * 1024)).toFixed(2);
-                  
-                  return {
-                    title: fileInfo.server_filename || 'Terabox File',
-                    thumbnail: fileInfo.thumbs?.url3 || fileInfo.thumbs?.url2 || 'https://via.placeholder.com/640x360',
-                    duration: '0:00',
-                    qualities: [
-                      {
-                        quality: 'Original',
-                        format: fileInfo.server_filename?.split('.').pop() || 'mp4',
-                        size: `${sizeMB} MB`,
-                        url: fileInfo.dlink
-                      }
-                    ],
-                    audioFormats: [],
-                    platform: 'terabox',
-                    extractionMethod: 'Terabox HTML Direct'
-                  };
+                  if (fileInfo.dlink) {
+                    console.log('✅ SUCCESS! Found download link in HTML');
+                    
+                    const fileSize = fileInfo.size || 0;
+                    const sizeMB = (fileSize / (1024 * 1024)).toFixed(2);
+                    
+                    return {
+                      title: fileInfo.server_filename || 'Terabox File',
+                      thumbnail: fileInfo.thumbs?.url3 || fileInfo.thumbs?.url2 || 'https://via.placeholder.com/640x360',
+                      duration: '0:00',
+                      qualities: [
+                        {
+                          quality: 'Original',
+                          format: fileInfo.server_filename?.split('.').pop() || 'mp4',
+                          size: `${sizeMB} MB`,
+                          url: fileInfo.dlink
+                        }
+                      ],
+                      audioFormats: [],
+                      platform: 'terabox',
+                      extractionMethod: 'Terabox HTML Direct'
+                    };
+                  }
                 }
+              } catch (e) {
+                console.log('Failed to parse locals:', e.message);
               }
-            } catch (e) {
-              console.log('Failed to parse locals:', e.message);
+              break;
             }
           }
         }
