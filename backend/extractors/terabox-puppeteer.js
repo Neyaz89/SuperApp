@@ -66,7 +66,7 @@ async function extractTeraboxPuppeteer(url) {
     console.log('✅ Page loaded');
     
     // Wait for the page to fully load and execute JavaScript
-    await page.waitForTimeout(3000);
+    await new Promise(resolve => setTimeout(resolve, 3000));
     
     // Extract file data from window.locals
     console.log('🔍 Extracting file data...');
