@@ -63,9 +63,29 @@ async function extractTeraboxScraper(url) {
       // Check each script for useful data
       for (let i = 0; i < Math.min(scriptMatches.length, 10); i++) {
         const script = scriptMatches[i];
-        if (script.includes('locals') || script.includes('jsToken') || script.includes('file_list')) {
+        if (script.includes('locals') || script.includes('jsToken') || script.includes('file_list') || script.includes('decodeURIComponent')) {
           console.log(`Script ${i} contains useful data (length: ${script.length})`);
           console.log(`Script ${i} content:`, script.substring(0, 500));
+          
+          // Check for encoded jsToken in eval
+          if (script.includes('decodeURIComponent') && script.includes('jsToken')) {
+            const encodedMatch = script.match(/decodeURIComponent\(`([^`]+)`\)/);
+            if (encodedMatch) {
+              try {
+                const decoded = decodeURIComponent(encodedMatch[1]);
+                console.log('Decoded eval:', decoded);
+                
+                // Extract jsToken from decoded string
+                const tokenMatch = decoded.match(/jsToken\s*=\s*["']([^"']+)["']/);
+                if (tokenMatch) {
+                  jsToken = tokenMatch[1];
+                  console.log('✅ Extracted jsToken from eval:', jsToken.substring(0, 50) + '...');
+                }
+              } catch (e) {
+                console.log('Failed to decode:', e.message);
+              }
+            }
+          }
           
           // Try multiple patterns to extract locals
           const patterns = [
