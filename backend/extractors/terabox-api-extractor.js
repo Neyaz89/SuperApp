@@ -29,7 +29,8 @@ async function extractTeraboxAPI(url) {
   
   // Load cookies
   const cookieFile = '/app/terabox_cookies.txt';
-  let ndus_cookie = '';
+  let cookieString = '';
+  const cookies = {};
   
   if (fs.existsSync(cookieFile)) {
     const cookieContent = fs.readFileSync(cookieFile, 'utf8');
@@ -43,17 +44,30 @@ async function extractTeraboxAPI(url) {
       if (parts.length >= 7) {
         const cookieName = parts[5];
         const cookieValue = parts[6];
-        
-        if (cookieName === 'ndus') {
-          ndus_cookie = cookieValue;
-          console.log('✅ Found ndus cookie');
-          break;
-        }
+        cookies[cookieName] = cookieValue;
       }
     }
     
-    if (!ndus_cookie) {
-      console.log('⚠️ No ndus cookie found in file');
+    // Build cookie string with all important cookies
+    const importantCookies = ['ndus', 'TSID', 'csrfToken', 'browserid', 'lang'];
+    const cookiePairs = [];
+    
+    for (const name of importantCookies) {
+      if (cookies[name]) {
+        cookiePairs.push(`${name}=${cookies[name]}`);
+      }
+    }
+    
+    cookieString = cookiePairs.join('; ');
+    
+    if (cookies.ndus) {
+      console.log('✅ Found ndus cookie');
+    }
+    if (cookies.TSID) {
+      console.log('✅ Found TSID cookie');
+    }
+    if (!cookies.ndus && !cookies.TSID) {
+      console.log('⚠️ No authentication cookies found');
     }
   }
   
@@ -70,7 +84,7 @@ async function extractTeraboxAPI(url) {
         'Accept': 'application/json, text/plain, */*',
         'Accept-Language': 'en-US,en;q=0.9',
         'Referer': `https://www.terabox.com/s/${shareId}`,
-        'Cookie': ndus_cookie ? `ndus=${ndus_cookie}` : '',
+        'Cookie': cookieString,
         'Origin': 'https://www.terabox.com'
       },
       timeout: 20000
@@ -111,7 +125,7 @@ async function extractTeraboxAPI(url) {
           'Accept': 'application/json, text/plain, */*',
           'Accept-Language': 'en-US,en;q=0.9',
           'Referer': `https://www.terabox.com/s/${shareId}`,
-          'Cookie': ndus_cookie ? `ndus=${ndus_cookie}` : '',
+          'Cookie': cookieString,
           'Origin': 'https://www.terabox.com'
         },
         timeout: 20000
