@@ -155,7 +155,17 @@ async function extractYouTubeRobust(url) {
 async function extractTerabox(url) {
   console.log('🔵 Terabox: Starting extraction...');
   
-  // Try scraper first (works like a browser, no cookies needed)
+  // Try Puppeteer first (best method - bypasses IP blocking)
+  try {
+    const { extractTeraboxPuppeteer } = require('../extractors/terabox-puppeteer');
+    const result = await extractTeraboxPuppeteer(url);
+    console.log('✅ Terabox Puppeteer extraction successful!');
+    return result;
+  } catch (e) {
+    console.log('Terabox Puppeteer failed, trying scraper...', e.message);
+  }
+  
+  // Try scraper (works like a browser, no cookies needed)
   try {
     const { extractTeraboxScraper } = require('../extractors/terabox-scraper');
     const result = await extractTeraboxScraper(url);
