@@ -78,40 +78,45 @@ async function extractTeraboxAPI(url) {
     console.log('📄 File:', fileInfo.server_filename);
     console.log('🆔 FS ID:', fileInfo.fs_id);
     
-    // Step 2: Get download link
-    console.log('📡 Step 2: Getting download link...');
+    // Check if dlink is already in the response (sometimes it is)
+    let downloadLink = fileInfo.dlink;
     
-    const downloadUrl = `https://www.terabox.com/share/download?app_id=250528&web=1&channel=dubox&clienttype=0&sign=${listData.sign}&timestamp=${listData.timestamp}&shareid=${listData.shareid}&uk=${listData.uk}&primaryid=${listData.shareid}&fid_list=[${fileInfo.fs_id}]`;
-    
-    const downloadResponse = await fetch(downloadUrl, {
-      method: 'GET',
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
-        'Accept': 'application/json, text/plain, */*',
-        'Accept-Language': 'en-US,en;q=0.9',
-        'Referer': `https://www.terabox.com/s/${shareId}`,
-        'Cookie': ndus_cookie ? `ndus=${ndus_cookie}` : '',
-        'Origin': 'https://www.terabox.com'
-      },
-      timeout: 20000
-    });
-    
-    if (!downloadResponse.ok) {
-      throw new Error(`Download API returned ${downloadResponse.status}`);
+    if (!downloadLink) {
+      // Step 2: Get download link if not in list response
+      console.log('📡 Step 2: Getting download link...');
+      
+      const downloadUrl = `https://www.terabox.com/share/download?app_id=250528&web=1&channel=dubox&clienttype=0&sign=${listData.sign}&timestamp=${listData.timestamp}&shareid=${listData.shareid}&uk=${listData.uk}&primaryid=${listData.shareid}&fid_list=[${fileInfo.fs_id}]`;
+      
+      const downloadResponse = await fetch(downloadUrl, {
+        method: 'GET',
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
+          'Accept': 'application/json, text/plain, */*',
+          'Accept-Language': 'en-US,en;q=0.9',
+          'Referer': `https://www.terabox.com/s/${shareId}`,
+          'Cookie': ndus_cookie ? `ndus=${ndus_cookie}` : '',
+          'Origin': 'https://www.terabox.com'
+        },
+        timeout: 20000
+      });
+      
+      if (!downloadResponse.ok) {
+        throw new Error(`Download API returned ${downloadResponse.status}`);
+      }
+      
+      const downloadData = await downloadResponse.json();
+      console.log('💾 Download response errno:', downloadData.errno);
+      
+      if (downloadData.errno !== 0) {
+        throw new Error(`Download API error: ${downloadData.errno}`);
+      }
+      
+      if (!downloadData.list || downloadData.list.length === 0) {
+        throw new Error('No download link returned');
+      }
+      
+      downloadLink = downloadData.list[0].dlink;
     }
-    
-    const downloadData = await downloadResponse.json();
-    console.log('💾 Download response errno:', downloadData.errno);
-    
-    if (downloadData.errno !== 0) {
-      throw new Error(`Download API error: ${downloadData.errno}`);
-    }
-    
-    if (!downloadData.list || downloadData.list.length === 0) {
-      throw new Error('No download link returned');
-    }
-    
-    const downloadLink = downloadData.list[0].dlink;
     
     if (!downloadLink) {
       throw new Error('Download link is empty');
