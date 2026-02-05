@@ -51,6 +51,11 @@ async function extractTeraboxScraper(url) {
     const html = await pageResponse.text();
     console.log('📄 Got page HTML, length:', html.length);
     
+    // Initialize token variables
+    let jsToken = '';
+    let bdstoken = '';
+    let logid = '';
+    
     // Debug: Log a sample of the HTML to see what we're working with
     const htmlSample = html.substring(0, 5000);
     console.log('HTML sample (first 500 chars):', htmlSample.substring(0, 500));
@@ -73,13 +78,20 @@ async function extractTeraboxScraper(url) {
             if (encodedMatch) {
               try {
                 const decoded = decodeURIComponent(encodedMatch[1]);
-                console.log('Decoded eval:', decoded);
+                console.log('Decoded eval:', decoded.substring(0, 200));
                 
-                // Extract jsToken from decoded string
-                const tokenMatch = decoded.match(/jsToken\s*=\s*["']([^"']+)["']/);
+                // Extract jsToken from decoded string - try fn("TOKEN") pattern first
+                const tokenMatch = decoded.match(/fn\(["']([^"']+)["']\)/);
                 if (tokenMatch) {
                   jsToken = tokenMatch[1];
-                  console.log('✅ Extracted jsToken from eval:', jsToken.substring(0, 50) + '...');
+                  console.log('✅ Extracted jsToken from fn() call:', jsToken.substring(0, 50) + '...');
+                } else {
+                  // Try alternative pattern: jsToken = "TOKEN"
+                  const altMatch = decoded.match(/jsToken\s*=\s*["']([^"']+)["']/);
+                  if (altMatch) {
+                    jsToken = altMatch[1];
+                    console.log('✅ Extracted jsToken (assignment pattern):', jsToken.substring(0, 50) + '...');
+                  }
                 }
               } catch (e) {
                 console.log('Failed to decode:', e.message);
@@ -143,22 +155,32 @@ async function extractTeraboxScraper(url) {
       }
     }
     
-    // Step 2: Extract tokens with better patterns
+    // Step 2: Extract tokens with better patterns (if not already found)
     
-    // Extract jsToken from eval/decodeURIComponent pattern
-    let jsToken = '';
-    const evalMatch = html.match(/eval\(decodeURIComponent\(`([^`]+)`\)\)/);
-    if (evalMatch) {
-      try {
-        const decoded = decodeURIComponent(evalMatch[1]);
-        console.log('Decoded eval:', decoded.substring(0, 200));
-        const tokenMatch = decoded.match(/jsToken\s*=\s*["']([^"']+)["']/);
-        if (tokenMatch) {
-          jsToken = tokenMatch[1];
-          console.log('✅ Found jsToken from eval:', jsToken.substring(0, 50) + '...');
+    // Extract jsToken from eval/decodeURIComponent pattern (if not found in scripts)
+    if (!jsToken) {
+      const evalMatch = html.match(/eval\(decodeURIComponent\(`([^`]+)`\)\)/);
+      if (evalMatch) {
+        try {
+          const decoded = decodeURIComponent(evalMatch[1]);
+          console.log('Decoded eval (fallback):', decoded.substring(0, 200));
+          
+          // Try fn("TOKEN") pattern first
+          let tokenMatch = decoded.match(/fn\(["']([^"']+)["']\)/);
+          if (tokenMatch) {
+            jsToken = tokenMatch[1];
+            console.log('✅ Found jsToken from fn() call (fallback):', jsToken.substring(0, 50) + '...');
+          } else {
+            // Try assignment pattern
+            tokenMatch = decoded.match(/jsToken\s*=\s*["']([^"']+)["']/);
+            if (tokenMatch) {
+              jsToken = tokenMatch[1];
+              console.log('✅ Found jsToken from assignment (fallback):', jsToken.substring(0, 50) + '...');
+            }
+          }
+        } catch (e) {
+          console.log('Failed to decode eval:', e.message);
         }
-      } catch (e) {
-        console.log('Failed to decode eval:', e.message);
       }
     }
     
@@ -174,35 +196,37 @@ async function extractTeraboxScraper(url) {
         const match = html.match(pattern);
         if (match) {
           jsToken = match[1];
-          console.log('✅ Found jsToken');
+          console.log('✅ Found jsToken (direct pattern)');
           break;
         }
       }
     }
     
-    // Extract bdstoken
-    let bdstoken = '';
-    const bdstokenPatterns = [
-      /window\.bdstoken\s*=\s*["']([^"']+)["']/,
-      /bdstoken["']?\s*:\s*["']([^"']+)["']/,
-      /"bdstoken"\s*:\s*"([^"]+)"/
-    ];
-    
-    for (const pattern of bdstokenPatterns) {
-      const match = html.match(pattern);
-      if (match) {
-        bdstoken = match[1];
-        console.log('✅ Found bdstoken');
-        break;
+    // Extract bdstoken (if not already found)
+    if (!bdstoken) {
+      const bdstokenPatterns = [
+        /window\.bdstoken\s*=\s*["']([^"']+)["']/,
+        /bdstoken["']?\s*:\s*["']([^"']+)["']/,
+        /"bdstoken"\s*:\s*"([^"]+)"/
+      ];
+      
+      for (const pattern of bdstokenPatterns) {
+        const match = html.match(pattern);
+        if (match) {
+          bdstoken = match[1];
+          console.log('✅ Found bdstoken');
+          break;
+        }
       }
     }
     
-    // Extract logid
-    let logid = '';
-    const logidMatch = html.match(/logid["']?\s*:\s*["']([^"']+)["']/);
-    if (logidMatch) {
-      logid = logidMatch[1];
-      console.log('✅ Found logid');
+    // Extract logid (if not already found)
+    if (!logid) {
+      const logidMatch = html.match(/logid["']?\s*:\s*["']([^"']+)["']/);
+      if (logidMatch) {
+        logid = logidMatch[1];
+        console.log('✅ Found logid');
+      }
     }
     
     console.log('Tokens:', { jsToken: !!jsToken, bdstoken: !!bdstoken, logid: !!logid });
