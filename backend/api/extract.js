@@ -164,14 +164,14 @@ async function extractTerabox(url) {
   }
 
   try {
-    // Try Python Terabox extractor first (uses Cloudflare Worker API)
-    const pythonScript = '/app/terabox_extract.py';
+    // Try Python Terabox extractor v2 (uses terabox-downloader package)
+    const pythonScript = '/app/terabox_extract_v2.py';
     const cookieString = hasCookies ? fs.readFileSync(cookieFile, 'utf8').trim() : '';
     const command = cookieString 
       ? `python3 ${pythonScript} "${url}" "${cookieString}"`
       : `python3 ${pythonScript} "${url}"`;
     
-    console.log('Running Python Terabox extractor...');
+    console.log('Running Python Terabox extractor v2...');
     
     const { stdout, stderr } = await execAsync(command, {
       timeout: 30000,
@@ -185,33 +185,20 @@ async function extractTerabox(url) {
 
     const result = JSON.parse(stdout);
     
-    if (result.success && result.download_link) {
-      console.log('✅ Terabox Python extraction successful!');
+    // Check if extraction succeeded
+    if (result.qualities && result.qualities.length > 0) {
+      console.log('✅ Terabox Python v2 extraction successful!');
       console.log('Title:', result.title);
-      
-      // Format response
-      return {
-        title: result.title || 'Terabox File',
-        thumbnail: result.thumbnail || 'https://via.placeholder.com/640x360',
-        duration: '0:00',
-        qualities: [
-          {
-            quality: 'Original',
-            format: 'mp4',
-            size: result.file_size || 'Unknown',
-            url: result.download_link
-          }
-        ],
-        audioFormats: [],
-        platform: 'terabox',
-        extractionMethod: result.extractor || 'terabox-python'
-      };
+      return result;
+    } else if (result.error) {
+      console.log('⚠️ Terabox Python v2 failed:', result.error);
+      throw new Error(result.error);
     } else {
-      throw new Error(result.error || 'Terabox Python extraction failed');
+      throw new Error('No download link found');
     }
     
   } catch (e) {
-    console.log('Python Terabox failed, trying yt-dlp generic extractor...', e.message);
+    console.log('Python Terabox v2 failed, trying yt-dlp generic extractor...', e.message);
   }
 
   // Fallback: Try yt-dlp generic extractor
