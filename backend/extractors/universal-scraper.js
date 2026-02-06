@@ -42,7 +42,7 @@ async function extractUniversal(url) {
 
     // Method 2: Find video URLs in page source using regex
     const videoPatterns = [
-      // Direct video files
+      // Direct video files (prioritize non-preview)
       /(https?:\/\/[^\s"'<>]+\.(?:mp4|webm|m4v|mov|avi|mkv|flv|wmv)(?:\?[^\s"'<>]*)?)/gi,
       // HLS streams
       /(https?:\/\/[^\s"'<>]+\.m3u8(?:\?[^\s"'<>]*)?)/gi,
@@ -57,6 +57,10 @@ async function extractUniversal(url) {
       if (matches) {
         matches.forEach(match => {
           const cleanUrl = match.replace(/['"\\]/g, '');
+          // Skip preview/thumbnail videos
+          if (cleanUrl.includes('preview') || cleanUrl.includes('thumb') || cleanUrl.includes('screenshot')) {
+            return;
+          }
           if (isVideoUrl(cleanUrl)) {
             videoUrls.add(cleanUrl);
           }
@@ -122,19 +126,33 @@ async function extractUniversal(url) {
       }
     });
 
-    // Convert Set to Array and create qualities
-    const uniqueUrls = Array.from(videoUrls);
+    // Convert Set to Array and filter out preview/thumbnail videos
+    const uniqueUrls = Array.from(videoUrls).filter(url => {
+      const lowerUrl = url.toLowerCase();
+      // Skip preview, thumbnail, screenshot videos
+      if (lowerUrl.includes('preview') || lowerUrl.includes('thumb') || lowerUrl.includes('screenshot')) {
+        return false;
+      }
+      // Skip very small videos (likely previews)
+      if (lowerUrl.includes('_small') || lowerUrl.includes('_tiny')) {
+        return false;
+      }
+      return true;
+    });
     
     if (uniqueUrls.length === 0) {
-      throw new Error('No video URLs found on page');
+      throw new Error('No downloadable video URLs found on page (only previews/thumbnails found)');
     }
 
-    console.log(`✅ Universal Scraper found ${uniqueUrls.length} video URL(s)`);
+    console.log(`✅ Universal Scraper found ${uniqueUrls.length} downloadable video URL(s) (filtered out previews)`);
 
     // Create quality entries
     uniqueUrls.forEach((videoUrl, index) => {
       const quality = guessQuality(videoUrl);
       const format = guessFormat(videoUrl);
+      
+      // Check if URL needs proxy (adult sites, sites with auth)
+      const needsProxy = requiresProxy(videoUrl);
       
       qualities.push({
         quality: quality || `Video ${index + 1}`,
@@ -143,6 +161,7 @@ async function extractUniversal(url) {
         url: videoUrl,
         hasAudio: true,
         hasVideo: true,
+        needsProxy: needsProxy, // Flag for frontend
       });
     });
 
@@ -227,6 +246,8 @@ function guessQuality(url) {
   const lowerUrl = url.toLowerCase();
   
   // Check for quality indicators in URL
+  if (/2160p|4k|uhd|3840x2160/i.test(lowerUrl)) return '2160p';
+  if (/1440p|2k|2560x1440/i.test(lowerUrl)) return '1440p';
   if (/1080p|1920x1080|fullhd|fhd/i.test(lowerUrl)) return '1080p';
   if (/720p|1280x720|hd/i.test(lowerUrl)) return '720p';
   if (/480p|854x480|sd/i.test(lowerUrl)) return '480p';
@@ -237,7 +258,15 @@ function guessQuality(url) {
   const match = url.match(/(\d{3,4})p/i);
   if (match) return match[1] + 'p';
   
-  return 'Unknown';
+  // For adult sites, check common patterns
+  if (/_hd\b|_high\b/i.test(lowerUrl)) return '720p';
+  if (/_sd\b|_low\b|_mobile\b/i.test(lowerUrl)) return '480p';
+  
+  // Default based on file path structure
+  if (lowerUrl.includes('/hd/') || lowerUrl.includes('/high/')) return '720p';
+  if (lowerUrl.includes('/sd/') || lowerUrl.includes('/low/')) return '480p';
+  
+  return 'HD';
 }
 
 function guessFormat(url) {
@@ -253,6 +282,34 @@ function guessFormat(url) {
   if (lowerUrl.includes('.flv')) return 'flv';
   
   return 'mp4'; // Default
+}
+
+function requiresProxy(url) {
+  const lowerUrl = url.toLowerCase();
+  
+  // Adult sites that require referer/cookies
+  const proxyDomains = [
+    'pornhub.com',
+    'xvideos.com',
+    'xhamster.com',
+    'xnxx.com',
+    'redtube.com',
+    'youporn.com',
+    'tube8.com',
+    'spankbang.com',
+    'eporner.com',
+    'hdtube.porn',
+    'txxx.com',
+    'hclips.com',
+    'upornia.com',
+    'drtuber.com',
+    'tnaflix.com',
+    'empflix.com',
+    'motherless.com',
+    'heavy-r.com',
+  ];
+  
+  return proxyDomains.some(domain => lowerUrl.includes(domain));
 }
 
 module.exports = { extractUniversal };
