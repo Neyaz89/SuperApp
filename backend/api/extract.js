@@ -42,10 +42,13 @@ module.exports = async (req, res) => {
       const result = await extractWithYtDlp(url);
       if (result && result.qualities && result.qualities.length > 0) {
         console.log(`✅ yt-dlp SUCCESS - Returning ${result.qualities.length} qualities to client`);
+        console.log('Sample quality:', JSON.stringify(result.qualities[0]));
         return res.json(result);
+      } else {
+        console.log('yt-dlp returned empty qualities, trying fallbacks...');
       }
     } catch (e) {
-      console.log('yt-dlp failed, trying API fallbacks...');
+      console.log('yt-dlp failed:', e.message);
     }
 
     // Fallback to API methods
@@ -53,10 +56,13 @@ module.exports = async (req, res) => {
       const fallbackResult = await extractWithFallbackAPIs(url);
       if (fallbackResult && fallbackResult.qualities && fallbackResult.qualities.length > 0) {
         console.log(`✅ API Fallback SUCCESS - Returning ${fallbackResult.qualities.length} qualities to client`);
+        console.log('Sample quality:', JSON.stringify(fallbackResult.qualities[0]));
         return res.json(fallbackResult);
+      } else {
+        console.log('API fallbacks returned empty qualities, trying Universal Scraper...');
       }
     } catch (apiError) {
-      console.log('API fallbacks failed, trying Universal Scraper...');
+      console.log('API fallbacks failed:', apiError.message);
     }
 
     // Final fallback: Universal HTML scraper (tries to extract from ANY site)
@@ -67,10 +73,17 @@ module.exports = async (req, res) => {
     // Check if we got valid results
     if (universalResult && universalResult.qualities && universalResult.qualities.length > 0) {
       console.log(`✅ Universal Scraper SUCCESS - Returning ${universalResult.qualities.length} video options to client`);
+      console.log('Sample videos:', JSON.stringify(universalResult.qualities.slice(0, 3), null, 2));
+      console.log('Full response being sent to client:', JSON.stringify({
+        title: universalResult.title,
+        qualityCount: universalResult.qualities.length,
+        audioCount: universalResult.audioFormats.length
+      }));
       return res.json(universalResult);
     }
     
     // If Universal Scraper also found nothing, return error
+    console.log('❌ Universal Scraper found no videos');
     throw new Error('No video URLs found by any method');
 
   } catch (error) {
