@@ -18,7 +18,7 @@ import * as FileSystem from 'expo-file-system';
 export default function DownloadScreen() {
   const router = useRouter();
   const { theme, isDark } = useTheme();
-  const { selectedQuality, setDownloadedFile } = useDownload();
+  const { selectedQuality, setDownloadedFile, mediaInfo } = useDownload();
   const [progress, setProgress] = useState(0);
   const [status, setStatus] = useState('Preparing download...');
   const progressAnim = new Animated.Value(0);
@@ -107,10 +107,11 @@ export default function DownloadScreen() {
       let downloadUrl = selectedQuality.url;
       if (needsProxy) {
         console.log('🔄 Using download proxy for adult site');
-        // Extract referer from URL
-        const urlObj = new URL(selectedQuality.url);
-        const referer = `${urlObj.protocol}//${urlObj.hostname}/`;
+        // Use the original source URL as referer (from mediaInfo)
+        const sourceUrl = (mediaInfo as any)?.url || selectedQuality.url;
+        const referer = sourceUrl;
         downloadUrl = `${PROXY_API_URL}?url=${encodeURIComponent(selectedQuality.url)}&referer=${encodeURIComponent(referer)}`;
+        console.log('📍 Referer:', referer);
       }
 
       const downloadResult = await downloadAsync(

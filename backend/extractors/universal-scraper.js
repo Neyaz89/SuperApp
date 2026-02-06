@@ -188,6 +188,7 @@ async function extractUniversal(url) {
       audioFormats: [],
       platform: 'generic',
       extractionMethod: 'universal-scraper',
+      sourceUrl: url, // Store source URL for re-extraction if needed
     };
 
   } catch (error) {
