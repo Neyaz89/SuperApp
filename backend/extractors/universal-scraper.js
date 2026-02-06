@@ -154,10 +154,13 @@ async function extractUniversal(url) {
       // Check if URL needs proxy (adult sites, sites with auth)
       const needsProxy = requiresProxy(videoUrl);
       
+      // Estimate file size based on quality (for better UX)
+      const estimatedSize = estimateFileSize(quality, format);
+      
       qualities.push({
         quality: quality || `Video ${index + 1}`,
         format: format,
-        size: 'Unknown',
+        size: estimatedSize,
         url: videoUrl,
         hasAudio: true,
         hasVideo: true,
@@ -310,6 +313,28 @@ function requiresProxy(url) {
   ];
   
   return proxyDomains.some(domain => lowerUrl.includes(domain));
+}
+
+function estimateFileSize(quality, format) {
+  // Estimate file size based on quality (assuming ~10 min video)
+  // These are rough estimates for better UX
+  const estimates = {
+    '2160p': '1.8 GB',
+    '1440p': '1.2 GB',
+    '1080p': '800 MB',
+    '720p': '400 MB',
+    '480p': '200 MB',
+    '360p': '100 MB',
+    '240p': '50 MB',
+    'HD': '500 MB',
+  };
+  
+  // For HLS/DASH streams, show "Streaming"
+  if (format === 'm3u8' || format === 'mpd') {
+    return 'Streaming';
+  }
+  
+  return estimates[quality] || '~300 MB';
 }
 
 module.exports = { extractUniversal };

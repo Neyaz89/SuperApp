@@ -24,7 +24,8 @@ app.get('/', (req, res) => {
     ],
     endpoints: {
       extract: 'POST /api/extract - Extract video info (Multi-Extractor v3.0)',
-      extractV1: 'POST /api/extract/v1 - Extract video info (Legacy v2.0)'
+      extractV1: 'POST /api/extract/v1 - Extract video info (Legacy v2.0)',
+      downloadProxy: 'GET /api/download-proxy?url=VIDEO_URL&referer=REFERER - Proxy downloads with headers'
     },
     supportedPlatforms: '1000+ websites including YouTube, Instagram, TikTok, Facebook, Twitter, Vimeo, and more'
   });
@@ -37,6 +38,10 @@ app.post('/api/extract', extractHandler);
 // v2 available for testing
 const extractHandlerV2 = require('./api/extract-v2');
 app.post('/api/extract/v2', extractHandlerV2);
+
+// Download proxy for adult sites (adds proper headers)
+const downloadProxyHandler = require('./api/download-proxy');
+app.get('/api/download-proxy', downloadProxyHandler);
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
