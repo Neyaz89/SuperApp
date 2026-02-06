@@ -408,8 +408,16 @@ async function extractGenericSite(url) {
     console.log('✓ Using generic cookies');
   }
   
+  // For Dailymotion, request specific format to get direct MP4
+  let formatArg = '';
+  if (platform === 'dailymotion') {
+    // Request best MP4 format with audio
+    formatArg = '--format "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best"';
+    console.log('✓ Using Dailymotion MP4 format selector');
+  }
+  
   try {
-    const command = `yt-dlp --no-check-certificate --skip-download --dump-json --no-warnings --no-playlist ${cookieArg} "${url}"`;
+    const command = `yt-dlp --no-check-certificate --skip-download --dump-json --no-warnings --no-playlist ${cookieArg} ${formatArg} "${url}"`;
     
     const { stdout, stderr } = await execAsync(command, {
       timeout: 30000,
@@ -431,6 +439,27 @@ async function extractGenericSite(url) {
 function formatYtDlpResponse(data, url) {
   // Handle both merged and separate video/audio formats
   const allFormats = data.formats || [];
+  
+  // For Dailymotion, prioritize progressive MP4 formats
+  const platform = detectPlatform(url);
+  if (platform === 'dailymotion') {
+    // Filter for direct MP4 URLs only (no HLS/DASH)
+    const mp4Formats = allFormats.filter(f => 
+      f.url && 
+      f.ext === 'mp4' &&
+      f.protocol === 'https' &&
+      !f.url.includes('.m3u8') && 
+      !f.url.includes('.mpd') &&
+      !f.url.includes('manifest') &&
+      !f.format_id?.includes('hls') &&
+      !f.format_id?.includes('dash')
+    );
+    
+    if (mp4Formats.length > 0) {
+      console.log(`✓ Found ${mp4Formats.length} direct MP4 formats for Dailymotion`);
+      return formatDailymotionResponse(data, mp4Formats, url);
+    }
+  }
   
   // Filter out HLS/DASH manifests - prefer direct URLs
   const directFormats = allFormats.filter(f => 
@@ -765,4 +794,49 @@ function formatDuration(seconds) {
     return `${h}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
   }
   return `${m}:${s.toString().padStart(2, '0')}`;
+}
+
+function formatDailymotionResponse(data, mp4Formats, url) {
+  // Sort by quality (height)
+  mp4Formats.sort((a, b) => (b.height || 0) - (a.height || 0));
+  
+  // Build quality list with direct MP4 URLs
+  const qualities = mp4Formats.map(f => ({
+    quality: f.height ? `${f.height}p` : (f.format_note || f.quality || 'Unknown'),
+    format: 'mp4',
+    size: f.filesize ? formatBytes(f.filesize) : (f.filesize_approx ? formatBytes(f.filesize_approx) : 'Unknown'),
+    url: f.url,
+    hasAudio: f.acodec !== 'none',
+    hasVideo: f.vcodec !== 'none',
+    protocol: 'https'
+  }));
+  
+  // Get audio formats if available
+  const audioFormats = data.formats?.filter(f => 
+    f.vcodec === 'none' && 
+    f.acodec !== 'none' && 
+    f.url &&
+    !f.url.includes('.m3u8')
+  ) || [];
+  
+  audioFormats.sort((a, b) => (b.abr || 0) - (a.abr || 0));
+  
+  const audioQualities = audioFormats.slice(0, 3).map(f => ({
+    quality: f.abr ? `${Math.round(f.abr)}kbps` : '128kbps',
+    format: f.ext || 'mp3',
+    size: f.filesize ? formatBytes(f.filesize) : 'Unknown',
+    url: f.url
+  }));
+  
+  console.log(`✓ Dailymotion: ${qualities.length} MP4 qualities, ${audioQualities.length} audio formats`);
+  
+  return {
+    title: data.title || 'Dailymotion Video',
+    thumbnail: data.thumbnail || data.thumbnails?.[0]?.url || 'https://via.placeholder.com/640x360',
+    duration: data.duration ? formatDuration(data.duration) : '0:00',
+    qualities: qualities,
+    audioFormats: audioQualities,
+    platform: 'dailymotion',
+    extractionMethod: 'yt-dlp-mp4'
+  };
 }
