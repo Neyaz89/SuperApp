@@ -35,33 +35,46 @@ module.exports = async (req, res) => {
     }
 
     console.log('Extracting:', url);
+    console.log('yt-dlp version: 2026.02.04');
 
     // Try yt-dlp first (supports 1000+ websites)
     try {
       const result = await extractWithYtDlp(url);
       if (result && result.qualities && result.qualities.length > 0) {
+        console.log(`✅ yt-dlp SUCCESS - Returning ${result.qualities.length} qualities to client`);
         return res.json(result);
       }
     } catch (e) {
       console.log('yt-dlp failed, trying API fallbacks...');
     }
 
-    // Fallback to API methods - don't catch errors, let them propagate
-    const fallbackResult = await extractWithFallbackAPIs(url);
-    return res.json(fallbackResult);
+    // Fallback to API methods
+    try {
+      const fallbackResult = await extractWithFallbackAPIs(url);
+      if (fallbackResult && fallbackResult.qualities && fallbackResult.qualities.length > 0) {
+        console.log(`✅ API Fallback SUCCESS - Returning ${fallbackResult.qualities.length} qualities to client`);
+        return res.json(fallbackResult);
+      }
+    } catch (apiError) {
+      console.log('API fallbacks failed, trying Universal Scraper...');
+    }
+
+    // Final fallback: Universal HTML scraper (tries to extract from ANY site)
+    console.log('🌐 Trying Universal HTML Scraper as last resort...');
+    const { extractUniversal } = require('../extractors/universal-scraper');
+    const universalResult = await extractUniversal(url);
+    
+    // Check if we got valid results
+    if (universalResult && universalResult.qualities && universalResult.qualities.length > 0) {
+      console.log(`✅ Universal Scraper SUCCESS - Returning ${universalResult.qualities.length} video options to client`);
+      return res.json(universalResult);
+    }
+    
+    // If Universal Scraper also found nothing, return error
+    throw new Error('No video URLs found by any method');
 
   } catch (error) {
-    console.error('Extraction error:', error.message);
-    
-    // Final fallback: Universal HTML scraper (tries to extract from ANY site)
-    try {
-      console.log('🌐 Trying Universal HTML Scraper as last resort...');
-      const { extractUniversal } = require('../extractors/universal-scraper');
-      const universalResult = await extractUniversal(req.body.url);
-      return res.json(universalResult);
-    } catch (universalError) {
-      console.error('Universal scraper also failed:', universalError.message);
-    }
+    console.error('❌ ALL extraction methods failed:', error.message);
     
     // Return graceful fallback only if ALL methods failed
     return res.json({
