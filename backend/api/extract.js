@@ -53,6 +53,16 @@ module.exports = async (req, res) => {
   } catch (error) {
     console.error('Extraction error:', error.message);
     
+    // Final fallback: Universal HTML scraper (tries to extract from ANY site)
+    try {
+      console.log('🌐 Trying Universal HTML Scraper as last resort...');
+      const { extractUniversal } = require('../extractors/universal-scraper');
+      const universalResult = await extractUniversal(req.body.url);
+      return res.json(universalResult);
+    } catch (universalError) {
+      console.error('Universal scraper also failed:', universalError.message);
+    }
+    
     // Return graceful fallback only if ALL methods failed
     return res.json({
       title: 'Video',
@@ -745,7 +755,7 @@ function detectPlatform(url) {
     twitter: /(?:twitter\.com|x\.com)/,
     tiktok: /tiktok\.com/,
     vimeo: /vimeo\.com/,
-    dailymotion: /dailymotion\.com/,
+    dailymotion: /(?:dailymotion\.com|dai\.ly)/,
     reddit: /reddit\.com/,
     twitch: /twitch\.tv/,
     soundcloud: /soundcloud\.com/,
