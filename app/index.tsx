@@ -127,8 +127,8 @@ export default function HomeScreen() {
       }
 
       const platform = detectPlatform(url);
-      if (!platform) {
-        setError('Unsupported platform. We support YouTube, Instagram, Facebook, Twitter, TikTok, Vimeo, Reddit, Twitch, Dailymotion, Terabox & more.');
+      if (!platform || platform === null) {
+        setError('Invalid URL. Please enter a valid video URL from any supported site.');
         return;
       }
 
@@ -283,7 +283,7 @@ export default function HomeScreen() {
 
             <View style={styles.platformsContainer}>
               <Text style={[styles.platformsLabel, { color: theme.textSecondary }]}>
-                Supported Platforms
+                1800+ Supported Sites
               </Text>
               <View style={styles.platformIcons}>
                 <View style={[styles.platformBadge, { backgroundColor: '#FF000015' }]}>
@@ -300,6 +300,9 @@ export default function HomeScreen() {
                 </View>
                 <View style={[styles.platformBadge, { backgroundColor: '#00ADEF15' }]}>
                   <PlatformIcon platform="vimeo" size={28} />
+                </View>
+                <View style={[styles.platformBadge, { backgroundColor: '#00000015' }]}>
+                  <Text style={{ fontSize: 20, fontWeight: '800' }}>+1795</Text>
                 </View>
               </View>
             </View>

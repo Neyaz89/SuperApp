@@ -39,7 +39,9 @@ export function detectPlatform(url: string): string | null {
     return 'direct';
   }
 
-  return null;
+  // Generic platform - let yt-dlp handle it (supports 1800+ sites)
+  // If URL is valid, return 'generic' instead of null
+  return 'generic';
 }
 
 export function extractVideoId(url: string, platform: string): string | null {
