@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import {
   View,
   Text,
@@ -7,11 +7,14 @@ import {
   StyleSheet,
   ScrollView,
   StatusBar,
+  Animated,
 } from 'react-native';
 import { useRouter } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useDownload } from '@/contexts/DownloadContext';
 import { PlatformIcon } from '@/components/PlatformIcon';
+import { LinearGradient } from '@/components/LinearGradient';
 
 export default function PreviewScreen() {
   const router = useRouter();
@@ -27,73 +30,114 @@ export default function PreviewScreen() {
     <View style={[styles.container, { backgroundColor: theme.background }]}>
       <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
       
-      <View style={[styles.header, { borderBottomColor: theme.border }]}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-          <Text style={[styles.backText, { color: theme.primary }]}>← Back</Text>
+      {/* Header with gradient */}
+      <View style={[styles.header, { backgroundColor: theme.card }]}>
+        <TouchableOpacity onPress={() => router.back()} style={[styles.backButton, { backgroundColor: theme.primary + '15' }]}>
+          <Ionicons name="arrow-back" size={24} color={theme.primary} />
         </TouchableOpacity>
-        <Text style={[styles.headerTitle, { color: theme.text }]}>Media Preview</Text>
-        <View style={{ width: 60 }} />
+        <Text style={[styles.headerTitle, { color: theme.text }]}>Preview</Text>
+        <View style={{ width: 48 }} />
       </View>
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-        <View style={[styles.thumbnailContainer, { backgroundColor: theme.card }]}>
-          <Image
-            source={{ uri: mediaInfo.thumbnail }}
-            style={styles.thumbnail}
-            resizeMode="cover"
-          />
-          <View style={styles.durationBadge}>
-            <Text style={styles.durationText}>{mediaInfo.duration}</Text>
+        {/* Thumbnail with floating badge */}
+        <View style={styles.thumbnailWrapper}>
+          <View style={[styles.thumbnailContainer, { backgroundColor: theme.card }]}>
+            <Image
+              source={{ uri: mediaInfo.thumbnail }}
+              style={styles.thumbnail}
+              resizeMode="cover"
+            />
+            <View style={styles.playOverlay}>
+              <View style={styles.playButton}>
+                <Ionicons name="play" size={28} color="#FF6B6B" style={{ marginLeft: 4 }} />
+              </View>
+            </View>
+            <View style={styles.durationBadge}>
+              <Ionicons name="time-outline" size={14} color="#FFFFFF" />
+              <Text style={styles.durationText}>{mediaInfo.duration}</Text>
+            </View>
           </View>
         </View>
 
-        <View style={styles.infoContainer}>
-          <View style={styles.platformRow}>
-            <PlatformIcon platform={mediaInfo.platform} size={28} />
-            <Text style={[styles.platformName, { color: theme.textSecondary }]}>
+        {/* Platform badge */}
+        <View style={styles.platformContainer}>
+          <View style={[styles.platformBadge, { backgroundColor: theme.card }]}>
+            <PlatformIcon platform={mediaInfo.platform} size={24} />
+            <Text style={[styles.platformName, { color: theme.text }]}>
               {mediaInfo.platform.charAt(0).toUpperCase() + mediaInfo.platform.slice(1)}
             </Text>
           </View>
+        </View>
 
+        {/* Title */}
+        <View style={styles.titleContainer}>
           <Text style={[styles.title, { color: theme.text }]} numberOfLines={3}>
             {mediaInfo.title}
           </Text>
+        </View>
 
-          <View style={styles.statsRow}>
-            <View style={[styles.statBadge, { backgroundColor: theme.card }]}>
-              <Text style={[styles.statLabel, { color: theme.textSecondary }]}>Qualities</Text>
-              <Text style={[styles.statValue, { color: theme.primary }]}>
-                {mediaInfo.qualities.length}
-              </Text>
+        {/* Stats cards */}
+        <View style={styles.statsContainer}>
+          <View style={[styles.statCard, { backgroundColor: '#FF6B6B15' }]}>
+            <View style={styles.statIconContainer}>
+              <Ionicons name="videocam" size={28} color="#FF6B6B" />
             </View>
-            <View style={[styles.statBadge, { backgroundColor: theme.card }]}>
-              <Text style={[styles.statLabel, { color: theme.textSecondary }]}>Audio</Text>
-              <Text style={[styles.statValue, { color: theme.primary }]}>
-                {mediaInfo.audioFormats.length}
-              </Text>
+            <Text style={[styles.statValue, { color: '#FF6B6B' }]}>
+              {mediaInfo.qualities.length}
+            </Text>
+            <Text style={[styles.statLabel, { color: theme.textSecondary }]}>
+              Video Qualities
+            </Text>
+          </View>
+
+          <View style={[styles.statCard, { backgroundColor: '#4ECDC415' }]}>
+            <View style={styles.statIconContainer}>
+              <Ionicons name="musical-notes" size={28} color="#4ECDC4" />
             </View>
-            <View style={[styles.statBadge, { backgroundColor: theme.card }]}>
-              <Text style={[styles.statLabel, { color: theme.textSecondary }]}>Duration</Text>
-              <Text style={[styles.statValue, { color: theme.primary }]}>
-                {mediaInfo.duration}
-              </Text>
+            <Text style={[styles.statValue, { color: '#4ECDC4' }]}>
+              {mediaInfo.audioFormats.length}
+            </Text>
+            <Text style={[styles.statLabel, { color: theme.textSecondary }]}>
+              Audio Formats
+            </Text>
+          </View>
+
+          <View style={[styles.statCard, { backgroundColor: '#FFE66D15' }]}>
+            <View style={styles.statIconContainer}>
+              <Ionicons name="time" size={28} color="#FFB800" />
             </View>
+            <Text style={[styles.statValue, { color: '#FFB800' }]}>
+              {mediaInfo.duration}
+            </Text>
+            <Text style={[styles.statLabel, { color: theme.textSecondary }]}>
+              Duration
+            </Text>
           </View>
         </View>
 
+        {/* Action buttons */}
         <View style={styles.actionsContainer}>
           <TouchableOpacity
-            style={[styles.actionButton, { backgroundColor: theme.primary }]}
+            style={styles.primaryButton}
             onPress={() => router.push('/quality')}
-            activeOpacity={0.8}
+            activeOpacity={0.85}
           >
-            <Text style={styles.actionButtonText}>Choose Quality & Download</Text>
+            <LinearGradient
+              colors={isDark ? ['#4ECDC4', '#3AAFA9'] : ['#FF6B6B', '#EE5A6F']}
+              style={styles.primaryGradient}
+            >
+              <Text style={styles.primaryButtonText}>Choose Quality</Text>
+              <View style={styles.primaryButtonIcon}>
+                <Ionicons name="arrow-forward" size={20} color="#FFFFFF" />
+              </View>
+            </LinearGradient>
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={[styles.secondaryButton, { borderColor: theme.border }]}
+            style={[styles.secondaryButton, { backgroundColor: theme.card }]}
             onPress={() => router.back()}
-            activeOpacity={0.8}
+            activeOpacity={0.7}
           >
             <Text style={[styles.secondaryButtonText, { color: theme.text }]}>
               Try Another Link
@@ -115,120 +159,184 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 20,
     paddingTop: 60,
-    paddingBottom: 16,
-    borderBottomWidth: 1,
+    paddingBottom: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
   },
   backButton: {
-    padding: 8,
-  },
-  backText: {
-    fontSize: 16,
-    fontWeight: '600',
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   headerTitle: {
-    fontSize: 18,
-    fontWeight: '700',
+    fontSize: 20,
+    fontWeight: '800',
   },
   content: {
     flex: 1,
   },
+  thumbnailWrapper: {
+    paddingHorizontal: 20,
+    paddingTop: 20,
+  },
   thumbnailContainer: {
-    margin: 20,
-    borderRadius: 20,
+    borderRadius: 24,
     overflow: 'hidden',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
+    shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.15,
-    shadowRadius: 12,
-    elevation: 5,
+    shadowRadius: 20,
+    elevation: 8,
   },
   thumbnail: {
     width: '100%',
     aspectRatio: 16 / 9,
   },
+  playOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(0,0,0,0.2)',
+  },
+  playButton: {
+    width: 70,
+    height: 70,
+    borderRadius: 35,
+    backgroundColor: 'rgba(255,255,255,0.95)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+  },
   durationBadge: {
     position: 'absolute',
-    bottom: 12,
-    right: 12,
-    backgroundColor: 'rgba(0, 0, 0, 0.8)',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 6,
+    bottom: 16,
+    right: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: 'rgba(0, 0, 0, 0.85)',
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 12,
   },
   durationText: {
     color: '#FFFFFF',
-    fontSize: 13,
-    fontWeight: '600',
+    fontSize: 14,
+    fontWeight: '700',
   },
-  infoContainer: {
+  platformContainer: {
     paddingHorizontal: 20,
+    paddingTop: 20,
   },
-  platformRow: {
+  platformBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
-    marginBottom: 12,
+    alignSelf: 'flex-start',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 20,
+    gap: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 2,
   },
   platformName: {
     fontSize: 15,
-    fontWeight: '600',
+    fontWeight: '700',
+  },
+  titleContainer: {
+    paddingHorizontal: 20,
+    paddingTop: 16,
   },
   title: {
-    fontSize: 22,
-    fontWeight: '700',
-    lineHeight: 30,
-    marginBottom: 20,
+    fontSize: 24,
+    fontWeight: '800',
+    lineHeight: 32,
   },
-  statsRow: {
+  statsContainer: {
     flexDirection: 'row',
+    paddingHorizontal: 20,
+    paddingTop: 24,
     gap: 12,
-    marginBottom: 32,
   },
-  statBadge: {
+  statCard: {
     flex: 1,
     padding: 16,
-    borderRadius: 12,
+    borderRadius: 20,
     alignItems: 'center',
   },
-  statLabel: {
-    fontSize: 12,
-    fontWeight: '500',
-    marginBottom: 4,
+  statIconContainer: {
+    marginBottom: 8,
   },
   statValue: {
-    fontSize: 18,
-    fontWeight: '700',
+    fontSize: 22,
+    fontWeight: '900',
+    marginBottom: 4,
+  },
+  statLabel: {
+    fontSize: 11,
+    fontWeight: '600',
+    textAlign: 'center',
   },
   actionsContainer: {
     paddingHorizontal: 20,
+    paddingTop: 32,
     paddingBottom: 40,
   },
-  actionButton: {
-    height: 56,
-    borderRadius: 16,
+  primaryButton: {
+    height: 64,
+    borderRadius: 32,
+    overflow: 'hidden',
+    marginBottom: 12,
+    shadowColor: '#FF6B6B',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.3,
+    shadowRadius: 16,
+    elevation: 8,
+  },
+  primaryGradient: {
+    flex: 1,
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 12,
-    elevation: 5,
+    gap: 12,
   },
-  actionButtonText: {
+  primaryButtonText: {
     color: '#FFFFFF',
-    fontSize: 17,
-    fontWeight: '700',
+    fontSize: 18,
+    fontWeight: '800',
+  },
+  primaryButtonIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(255,255,255,0.25)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   secondaryButton: {
-    height: 56,
-    borderRadius: 16,
+    height: 64,
+    borderRadius: 32,
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 3,
   },
   secondaryButtonText: {
     fontSize: 17,
-    fontWeight: '600',
+    fontWeight: '700',
   },
 });

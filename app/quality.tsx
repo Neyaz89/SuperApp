@@ -26,6 +26,19 @@ export default function QualityScreen() {
   const bounceAnim = new Animated.Value(1);
 
   useEffect(() => {
+    // Log what we received
+    console.log('=== Quality Screen Loaded ===');
+    console.log('MediaInfo:', mediaInfo ? {
+      title: mediaInfo.title,
+      platform: mediaInfo.platform,
+      videoQualities: mediaInfo.qualities.length,
+      audioFormats: mediaInfo.audioFormats.length
+    } : 'NULL');
+    
+    if (mediaInfo && mediaInfo.qualities.length > 0) {
+      console.log('First 3 video qualities:', JSON.stringify(mediaInfo.qualities.slice(0, 3), null, 2));
+    }
+    
     Animated.spring(scaleAnim, {
       toValue: 1,
       tension: 50,

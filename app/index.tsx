@@ -152,6 +152,8 @@ export default function HomeScreen() {
       const mediaData = await mediaExtractor.extractMediaInfo(url, platform);
       
       console.log('Extraction successful:', mediaData.title);
+      console.log('Video qualities received:', mediaData.qualities.length);
+      console.log('Audio formats received:', mediaData.audioFormats.length);
       
       setMediaInfo({
         url,
@@ -163,6 +165,7 @@ export default function HomeScreen() {
         audioFormats: mediaData.audioFormats,
       });
 
+      console.log('MediaInfo stored in context - navigating to preview');
       setLoading(false);
       router.push('/preview');
     } catch (err: any) {

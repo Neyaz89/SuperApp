@@ -100,8 +100,21 @@ export default function DownloadScreen() {
 
       setStatus('Downloading...');
 
+      // Check if URL needs proxy (for adult sites)
+      const needsProxy = (selectedQuality as any).needsProxy || false;
+      const PROXY_API_URL = 'https://superapp-api-d3y5.onrender.com/api/download-proxy';
+      
+      let downloadUrl = selectedQuality.url;
+      if (needsProxy) {
+        console.log('🔄 Using download proxy for adult site');
+        // Extract referer from URL
+        const urlObj = new URL(selectedQuality.url);
+        const referer = `${urlObj.protocol}//${urlObj.hostname}/`;
+        downloadUrl = `${PROXY_API_URL}?url=${encodeURIComponent(selectedQuality.url)}&referer=${encodeURIComponent(referer)}`;
+      }
+
       const downloadResult = await downloadAsync(
-        selectedQuality.url,
+        downloadUrl,
         fileUri
       );
 

@@ -8,11 +8,16 @@ export type DownloadProgress = {
   downloadedBytes: number;
 };
 
+// Render API URL
+const PROXY_API_URL = 'https://superapp-api-d3y5.onrender.com/api/download-proxy';
+
 export class MediaDownloader {
   async downloadMedia(
     url: string,
     filename: string,
-    onProgress?: (progress: DownloadProgress) => void
+    onProgress?: (progress: DownloadProgress) => void,
+    needsProxy?: boolean,
+    referer?: string
   ): Promise<string> {
     try {
       const { status } = await MediaLibrary.requestPermissionsAsync();
@@ -20,11 +25,20 @@ export class MediaDownloader {
         throw new Error('Media library permission not granted');
       }
 
+      // Use proxy for URLs that need it (adult sites, auth-required sites)
+      let downloadUrl = url;
+      if (needsProxy) {
+        console.log('🔄 Using download proxy for:', url);
+        downloadUrl = `${PROXY_API_URL}?url=${encodeURIComponent(url)}${referer ? `&referer=${encodeURIComponent(referer)}` : ''}`;
+      }
+
       const fileUri = `${FileSystem.documentDirectory}${filename}`;
+
+      console.log('⬇️ Starting download:', needsProxy ? 'via proxy' : 'direct');
 
       // Use legacy API
       const downloadResult = await downloadAsync(
-        url,
+        downloadUrl,
         fileUri,
         {
           progressCallback: (downloadProgress) => {
@@ -42,6 +56,8 @@ export class MediaDownloader {
         throw new Error(`Download failed with status ${downloadResult.status}`);
       }
 
+      console.log('✅ Download complete, saving to gallery...');
+
       const asset = await MediaLibrary.createAssetAsync(downloadResult.uri);
       
       try {
@@ -54,9 +70,11 @@ export class MediaDownloader {
         }
       }
 
+      console.log('✅ Saved to gallery successfully');
+
       return downloadResult.uri;
     } catch (error) {
-      console.error('Download error:', error);
+      console.error('❌ Download error:', error);
       throw error;
     }
   }

@@ -45,7 +45,7 @@ export class MediaExtractor {
         console.log(`Attempt ${attempt}/3: Calling API...`);
         
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 second timeout
+        const timeoutId = setTimeout(() => controller.abort(), 60000); // 60 second timeout for Universal Scraper
 
         const response = await fetch(API_URL, {
           method: 'POST',
@@ -78,16 +78,23 @@ export class MediaExtractor {
         console.log('API response received:', {
           title: data.title,
           qualityCount: data.qualities?.length,
-          audioCount: data.audioFormats?.length
+          audioCount: data.audioFormats?.length,
+          platform: data.platform,
+          extractionMethod: data.extractionMethod
         });
+
+        // Log first 3 video URLs for debugging
+        if (data.qualities && data.qualities.length > 0) {
+          console.log('First 3 video qualities:', JSON.stringify(data.qualities.slice(0, 3), null, 2));
+        }
 
         // Validate response
         if (!data.qualities || data.qualities.length === 0) {
-          console.warn('No qualities in response, using fallback');
+          console.warn('⚠️ No qualities in response, using fallback');
           return this.createMockData(url, platform);
         }
 
-        console.log('=== Extraction successful ===');
+        console.log('=== Extraction successful - Returning to app ===');
         return data;
         
       } catch (error: any) {
