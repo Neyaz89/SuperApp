@@ -44,6 +44,9 @@ async function extractUniversal(url) {
 
     // Method 2: Find video URLs in page source using regex
     const videoPatterns = [
+      // Terabox dlink (direct download link) - PRIORITY
+      /"dlink"\s*:\s*"([^"]+)"/gi,
+      /dlink['"]\s*:\s*['"](https?:\/\/[^'"]+)['"]/gi,
       // Direct video files (prioritize non-preview)
       /(https?:\/\/[^\s"'<>]+\.(?:mp4|webm|m4v|mov|avi|mkv|flv|wmv)(?:\?[^\s"'<>]*)?)/gi,
       // HLS streams
@@ -52,25 +55,34 @@ async function extractUniversal(url) {
       /(https?:\/\/[^\s"'<>]+\.mpd(?:\?[^\s"'<>]*)?)/gi,
       // Common video CDN patterns
       /(https?:\/\/[^\s"'<>]*(?:video|media|cdn|stream)[^\s"'<>]*\.(?:mp4|m3u8|mpd)(?:\?[^\s"'<>]*)?)/gi,
-      // Terabox specific patterns
-      /(https?:\/\/[^\s"'<>]*terabox[^\s"'<>]*)/gi,
-      /(https?:\/\/[^\s"'<>]*dubox[^\s"'<>]*)/gi,
     ];
 
     console.log('🔍 Searching HTML with regex patterns...');
-    videoPatterns.forEach(pattern => {
+    videoPatterns.forEach((pattern, index) => {
       const matches = html.match(pattern);
       if (matches) {
-        console.log(`Found ${matches.length} matches with pattern`);
+        console.log(`Pattern ${index + 1}: Found ${matches.length} matches`);
         matches.forEach(match => {
-          const cleanUrl = match.replace(/['"\\]/g, '');
-          // Skip preview/thumbnail videos (except Terabox)
-          if (cleanUrl.includes('terabox') || cleanUrl.includes('dubox') || 
-              (!cleanUrl.includes('preview') && !cleanUrl.includes('thumb') && !cleanUrl.includes('screenshot'))) {
-            if (isVideoUrl(cleanUrl)) {
-              videoUrls.add(cleanUrl);
-              console.log('✅ Added URL:', cleanUrl.substring(0, 80) + '...');
-            }
+          let cleanUrl = match.replace(/['"\\]/g, '').replace(/^dlink:\s*/, '');
+          
+          // Decode escaped characters in Terabox dlink
+          if (cleanUrl.includes('\\u002F')) {
+            cleanUrl = cleanUrl.replace(/\\u002F/g, '/');
+          }
+          
+          // Skip share page URLs (we want direct download links only)
+          if (cleanUrl.includes('/sharing/link') || cleanUrl.includes('/wap/sharing')) {
+            return;
+          }
+          
+          // Skip preview/thumbnail videos (except actual video thumbnails with ft=video)
+          if ((cleanUrl.includes('preview') || cleanUrl.includes('thumb')) && !cleanUrl.includes('ft=video')) {
+            return;
+          }
+          
+          if (isVideoUrl(cleanUrl)) {
+            videoUrls.add(cleanUrl);
+            console.log('✅ Added video URL:', cleanUrl.substring(0, 80) + '...');
           }
         });
       }
@@ -138,9 +150,15 @@ async function extractUniversal(url) {
     const uniqueUrls = Array.from(videoUrls).filter(url => {
       const lowerUrl = url.toLowerCase();
       
-      // For Terabox, DON'T filter - accept all URLs
-      if (lowerUrl.includes('terabox') || lowerUrl.includes('dubox') || lowerUrl.includes('1024tera')) {
-        console.log('✅ Terabox URL found:', url.substring(0, 100) + '...');
+      // Skip Terabox share page URLs
+      if (lowerUrl.includes('/sharing/link') || lowerUrl.includes('/wap/sharing')) {
+        console.log('❌ Skipping share page URL:', url.substring(0, 80) + '...');
+        return false;
+      }
+      
+      // For Terabox CDN, accept all URLs
+      if (lowerUrl.includes('teraboxcdn.com') || lowerUrl.includes('data.terabox')) {
+        console.log('✅ Terabox CDN URL accepted:', url.substring(0, 80) + '...');
         return true;
       }
       
@@ -231,8 +249,13 @@ function isVideoUrl(url) {
     return false;
   }
   
-  // Terabox URLs are always valid (they contain video data)
-  if (lowerUrl.includes('terabox') || lowerUrl.includes('dubox') || lowerUrl.includes('1024tera')) {
+  // Skip Terabox share page URLs (not direct download links)
+  if (lowerUrl.includes('/sharing/link') || lowerUrl.includes('/wap/sharing')) {
+    return false;
+  }
+  
+  // Terabox CDN URLs are valid (direct download links)
+  if (lowerUrl.includes('teraboxcdn.com') || lowerUrl.includes('data.terabox')) {
     return true;
   }
   
