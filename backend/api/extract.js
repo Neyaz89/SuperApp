@@ -131,10 +131,24 @@ async function extractWithYtDlp(url) {
       return await extractYouTubeRobust(url);
     }
     
-    // For Terabox, use server-side API extraction
+    // For Terabox, use yt-dlp with cookies (ONLY working method)
     if (platform === 'terabox') {
-      console.log('🔵 Terabox detected - using server-side API extraction');
-      return await extractTeraboxServerSide(url);
+      console.log('🔵 Terabox detected - using yt-dlp with cookies');
+      
+      const fs = require('fs');
+      const cookieFile = '/app/cookies/terabox_cookies.txt';
+      
+      // Check if cookies exist
+      if (fs.existsSync(cookieFile)) {
+        console.log('✓ Terabox cookies found - using yt-dlp');
+        return await extractTeraboxWithYtDlp(url);
+      } else {
+        console.log('❌ Terabox cookies not found');
+        console.log('📝 Terabox requires authentication cookies to work');
+        
+        // Return error message with instructions
+        throw new Error('Terabox requires authentication. Please add cookies to backend/cookies/terabox_cookies.txt and redeploy. See TERABOX_SETUP.md for instructions.');
+      }
     }
     
     // For non-YouTube sites, use standard extraction with fallback
