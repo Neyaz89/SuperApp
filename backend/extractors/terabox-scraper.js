@@ -335,114 +335,114 @@ async function extractTeraboxScraper(url) {
       }
     }
     
-    // If we have jsToken, we can try to get the download link directly from the page
-    // by making a proper API call that looks like a real browser
+    // If we have jsToken, make API call with ALL required parameters
     if (jsToken) {
       console.log('📡 Making API call with jsToken...');
       
-      // Build API URL with ALL required parameters to avoid errno 105
-      const timestamp = Date.now();
-      const apiUrl = `https://www.terabox.app/share/list?app_id=250528&web=1&channel=dubox&clienttype=0&jsToken=${jsToken}&dp-logid=&page=1&num=20&by=name&order=asc&site_referer=&shorturl=${shareId}&root=1&pwd=`;
-      
-      console.log('API URL:', apiUrl);
-      
-      const apiResponse = await fetch(apiUrl, {
-        method: 'GET',
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
-          'Accept': 'application/json, text/plain, */*',
-          'Accept-Language': 'en-US,en;q=0.9',
-          'Accept-Encoding': 'gzip, deflate, br',
-          'Referer': pageUrl,
-          'Origin': 'https://www.terabox.app',
-          'Connection': 'keep-alive',
-          'Sec-Fetch-Dest': 'empty',
-          'Sec-Fetch-Mode': 'cors',
-          'Sec-Fetch-Site': 'same-origin',
-          'Sec-Ch-Ua': '"Not A(Brand";v="99", "Google Chrome";v="121", "Chromium";v="121"',
-          'Sec-Ch-Ua-Mobile': '?0',
-          'Sec-Ch-Ua-Platform': '"Windows"'
+      // Try multiple API endpoints that might work
+      const apiAttempts = [
+        {
+          name: 'List API with all params',
+          url: `https://www.terabox.app/share/list?app_id=250528&web=1&channel=dubox&clienttype=0&jsToken=${jsToken}&dp-logid=&page=1&num=20&by=name&order=asc&site_referer=&shorturl=${shareId}&root=1&pwd=`,
         },
-        timeout: 20000
-      });
-    
-    if (!apiResponse.ok) {
-      console.log(`⚠️ API returned ${apiResponse.status}, trying to extract from HTML anyway`);
-      throw new Error(`API returned ${apiResponse.status}`);
-    }
-    
-    const apiData = await apiResponse.json();
-    console.log('📦 API response errno:', apiData.errno);
-    
-    // If errno is 105, the link might be expired or need password
-    // But let's try to extract from HTML anyway
-    if (apiData.errno !== 0) {
-      console.log(`⚠️ API error ${apiData.errno}, will try to extract from HTML`);
-      throw new Error(`API error: ${apiData.errno}`);
-    }
-    
-    if (!apiData.list || apiData.list.length === 0) {
-      throw new Error('No files found');
-    }
-    
-    const fileInfo = apiData.list[0];
-    console.log('📄 File:', fileInfo.server_filename);
-    
-    // Check for direct download link
-    let downloadLink = fileInfo.dlink;
-    
-    if (!downloadLink) {
-      // Try to get download link via download API
-      console.log('📡 Requesting download link...');
-      const downloadUrl = `https://www.terabox.app/share/download?app_id=250528&web=1&channel=dubox&clienttype=0&sign=${apiData.sign}&timestamp=${apiData.timestamp}&shareid=${apiData.shareid}&uk=${apiData.uk}&primaryid=${apiData.shareid}&fid_list=[${fileInfo.fs_id}]&jsToken=${jsToken}`;
-      
-      const downloadResponse = await fetch(downloadUrl, {
-        method: 'GET',
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-          'Accept': 'application/json',
-          'Referer': pageUrl
+        {
+          name: 'List API alternate',
+          url: `https://www.terabox.app/api/list?app_id=250528&web=1&channel=dubox&clienttype=0&jsToken=${jsToken}&shorturl=${shareId}&root=1`,
         },
-        timeout: 20000
-      });
-      
-      if (downloadResponse.ok) {
-        const downloadData = await downloadResponse.json();
-        if (downloadData.errno === 0 && downloadData.list && downloadData.list[0]) {
-          downloadLink = downloadData.list[0].dlink;
-          console.log('✅ Got download link from download API');
+      ];
+
+      for (const attempt of apiAttempts) {
+        try {
+          console.log(`⏳ Trying ${attempt.name}...`);
+          console.log('URL:', attempt.url);
+          
+          const apiResponse = await fetch(attempt.url, {
+            method: 'GET',
+            headers: {
+              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
+              'Accept': 'application/json, text/plain, */*',
+              'Accept-Language': 'en-US,en;q=0.9',
+              'Referer': pageUrl,
+              'Origin': 'https://www.terabox.app',
+              'Connection': 'keep-alive',
+            },
+            timeout: 20000
+          });
+        
+          if (!apiResponse.ok) {
+            console.log(`⚠️ ${attempt.name} returned ${apiResponse.status}`);
+            continue;
+          }
+          
+          const apiData = await apiResponse.json();
+          console.log('📦 API response errno:', apiData.errno);
+          
+          if (apiData.errno === 0 && apiData.list && apiData.list.length > 0) {
+            const fileInfo = apiData.list[0];
+            console.log('📄 File:', fileInfo.server_filename);
+            
+            let downloadLink = fileInfo.dlink;
+            
+            // If no dlink, try download API
+            if (!downloadLink && apiData.sign && apiData.timestamp) {
+              console.log('📡 Requesting download link...');
+              const downloadUrl = `https://www.terabox.app/share/download?app_id=250528&web=1&channel=dubox&clienttype=0&sign=${apiData.sign}&timestamp=${apiData.timestamp}&shareid=${apiData.shareid}&uk=${apiData.uk}&primaryid=${apiData.shareid}&fid_list=[${fileInfo.fs_id}]&jsToken=${jsToken}`;
+              
+              const downloadResponse = await fetch(downloadUrl, {
+                method: 'GET',
+                headers: {
+                  'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+                  'Accept': 'application/json',
+                  'Referer': pageUrl
+                },
+                timeout: 20000
+              });
+              
+              if (downloadResponse.ok) {
+                const downloadData = await downloadResponse.json();
+                if (downloadData.errno === 0 && downloadData.list && downloadData.list[0]) {
+                  downloadLink = downloadData.list[0].dlink;
+                  console.log('✅ Got download link from download API');
+                }
+              }
+            }
+            
+            if (downloadLink) {
+              console.log('✅ SUCCESS! Got download link');
+              
+              const fileSize = fileInfo.size || 0;
+              const sizeMB = (fileSize / (1024 * 1024)).toFixed(2);
+              
+              return {
+                title: fileInfo.server_filename || 'Terabox File',
+                thumbnail: fileInfo.thumbs?.url3 || fileInfo.thumbs?.url2 || 'https://via.placeholder.com/640x360',
+                duration: '0:00',
+                qualities: [
+                  {
+                    quality: 'Original',
+                    format: fileInfo.server_filename?.split('.').pop() || 'mp4',
+                    size: `${sizeMB} MB`,
+                    url: downloadLink,
+                    hasAudio: true,
+                    hasVideo: true,
+                    needsProxy: false
+                  }
+                ],
+                audioFormats: [],
+                platform: 'terabox',
+                extractionMethod: 'Terabox Scraper'
+              };
+            }
+          }
+          
+          console.log(`❌ ${attempt.name} failed: errno ${apiData.errno}`);
+        } catch (e) {
+          console.log(`❌ ${attempt.name} error:`, e.message);
+          continue;
         }
       }
-    }
-    
-    if (!downloadLink) {
-      throw new Error('No download link found');
-    }
-    
-    console.log('✅ SUCCESS! Got download link');
-    
-    const fileSize = fileInfo.size || 0;
-    const sizeMB = (fileSize / (1024 * 1024)).toFixed(2);
-    
-    return {
-      title: fileInfo.server_filename || 'Terabox File',
-      thumbnail: fileInfo.thumbs?.url3 || fileInfo.thumbs?.url2 || 'https://via.placeholder.com/640x360',
-      duration: '0:00',
-      qualities: [
-        {
-          quality: 'Original',
-          format: fileInfo.server_filename?.split('.').pop() || 'mp4',
-          size: `${sizeMB} MB`,
-          url: downloadLink,
-          hasAudio: true,
-          hasVideo: true,
-          needsProxy: false
-        }
-      ],
-      audioFormats: [],
-      platform: 'terabox',
-      extractionMethod: 'Terabox Scraper'
-    };
+      
+      console.log('⚠️ All API attempts failed');
     }
     
   } catch (error) {
