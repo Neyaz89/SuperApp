@@ -112,8 +112,6 @@ async function extractTeraboxHTML(url) {
           }
         });
       }
-    });
-    console.log(`Searched ${scriptCount} script tags`);
       
       // Look for direct video URLs
       const videoPatterns = [
@@ -133,6 +131,7 @@ async function extractTeraboxHTML(url) {
         }
       });
     });
+    console.log(`Searched ${scriptCount} script tags`);
 
     // Method 3: Look for download buttons/links
     $('a[href*="download"], button[data-url], [data-dlink]').each((i, elem) => {
