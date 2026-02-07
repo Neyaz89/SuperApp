@@ -40,6 +40,13 @@ module.exports = async (req, res) => {
     // Try yt-dlp first (supports 1000+ websites)
     try {
       const result = await extractWithYtDlp(url);
+      
+      // Check if this is a WebView instruction (Terabox)
+      if (result && result.useWebView) {
+        console.log('✅ Returning WebView instruction to client');
+        return res.json(result);
+      }
+      
       if (result && result.qualities && result.qualities.length > 0) {
         console.log(`✅ yt-dlp SUCCESS - Returning ${result.qualities.length} qualities to client`);
         console.log('Sample quality:', JSON.stringify(result.qualities[0]));
