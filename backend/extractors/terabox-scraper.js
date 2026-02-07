@@ -231,6 +231,69 @@ async function extractTeraboxScraper(url) {
     
     console.log('Tokens:', { jsToken: !!jsToken, bdstoken: !!bdstoken, logid: !!logid });
     
+    // CRITICAL: Try to extract file info and download link directly from HTML FIRST
+    // This is more reliable than API calls which return errno 105
+    const localsPatterns = [
+      /window\.locals\s*=\s*({[\s\S]*?});/,
+      /var\s+locals\s*=\s*({[\s\S]*?});/,
+    ];
+    
+    for (const pattern of localsPatterns) {
+      const localsMatch = html.match(pattern);
+      if (localsMatch) {
+        try {
+          // Try to parse the locals object
+          const localsStr = localsMatch[1];
+          console.log('✅ Found window.locals in HTML');
+          console.log('Locals string length:', localsStr.length);
+          
+          // Try to extract file_list from the string
+          const fileListMatch = localsStr.match(/"file_list"\s*:\s*\[([\s\S]*?)\]/);
+          if (fileListMatch) {
+            console.log('✅ Found file_list in locals');
+            
+            // Extract dlink from file_list
+            const dlinkMatch = fileListMatch[1].match(/"dlink"\s*:\s*"([^"]+)"/);
+            const filenameMatch = fileListMatch[1].match(/"server_filename"\s*:\s*"([^"]+)"/);
+            const sizeMatch = fileListMatch[1].match(/"size"\s*:\s*(\d+)/);
+            
+            if (dlinkMatch) {
+              console.log('✅ SUCCESS! Found dlink in HTML locals');
+              
+              const downloadLink = dlinkMatch[1];
+              const filename = filenameMatch ? filenameMatch[1] : 'Terabox File';
+              const fileSize = sizeMatch ? parseInt(sizeMatch[1]) : 0;
+              const sizeMB = (fileSize / (1024 * 1024)).toFixed(2);
+              
+              return {
+                title: filename,
+                thumbnail: 'https://via.placeholder.com/640x360',
+                duration: '0:00',
+                qualities: [
+                  {
+                    quality: 'Original',
+                    format: filename.split('.').pop() || 'mp4',
+                    size: `${sizeMB} MB`,
+                    url: downloadLink,
+                    hasAudio: true,
+                    hasVideo: true,
+                    needsProxy: false
+                  }
+                ],
+                audioFormats: [],
+                platform: 'terabox',
+                extractionMethod: 'Terabox HTML Direct'
+              };
+            }
+          }
+        } catch (e) {
+          console.log('⚠️ Failed to parse locals:', e.message);
+        }
+      }
+    }
+    
+    console.log('⚠️ No dlink found in HTML, will try API with jsToken...');
+    
     // Try to extract file info directly from HTML first
     const fileInfoMatch = html.match(/window\.locals\s*=\s*({[\s\S]*?});/);
     if (fileInfoMatch) {
