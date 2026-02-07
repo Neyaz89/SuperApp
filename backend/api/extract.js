@@ -187,12 +187,24 @@ async function extractYouTubeRobust(url) {
   }
 }
 
-// Extract from Terabox - Let Universal Scraper handle it
+// Extract from Terabox - Use HTML Scraper
 async function extractTerabox(url) {
-  console.log('🔵 Terabox: Skipping dedicated extractors, will use Universal Scraper...');
+  console.log('🔵 Terabox: Using HTML Scraper...');
   
-  // All Terabox APIs are blocked/dead, so just throw error to trigger Universal Scraper
-  throw new Error('Terabox extraction - will use Universal Scraper');
+  // Try HTML Scraper (extracts dlink from page)
+  try {
+    const { extractTeraboxHTML } = require('../extractors/terabox-html-scraper');
+    const result = await extractTeraboxHTML(url);
+    if (result && result.qualities && result.qualities.length > 0) {
+      console.log('✅ Terabox HTML Scraper extraction successful!');
+      return result;
+    }
+  } catch (e) {
+    console.log('Terabox HTML Scraper failed:', e.message);
+  }
+
+  console.log('⚠️ Terabox HTML Scraper failed - falling back to Universal Scraper');
+  throw new Error('Terabox extraction failed - will try Universal Scraper');
 }
 
 // Format Python yt-dlp response

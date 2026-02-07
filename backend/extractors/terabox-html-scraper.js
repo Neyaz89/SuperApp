@@ -3,30 +3,43 @@ const axios = require('axios');
 const cheerio = require('cheerio');
 
 async function extractTeraboxHTML(url) {
-  console.log('🔵 Terabox HTML Scraper: Extracting like Universal Scraper...');
+  console.log('🔵 Terabox HTML Scraper: Extracting dlink from page...');
   
   try {
-    // Fetch the page HTML
+    // Fetch the page HTML with proper headers to avoid blocking
     const response = await axios.get(url, {
       headers: {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
         'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
         'Accept-Language': 'en-US,en;q=0.5',
         'Referer': 'https://www.terabox.app/',
+        'Cache-Control': 'no-cache',
+        'Pragma': 'no-cache',
       },
-      timeout: 15000,
+      timeout: 20000,
       maxRedirects: 5,
+      validateStatus: (status) => status < 500,
     });
+
+    console.log('📄 Response status:', response.status);
+    console.log('📄 Content-Type:', response.headers['content-type']);
 
     // Check if response is JSON error (Terabox blocking)
     if (response.headers['content-type']?.includes('application/json')) {
       const jsonData = typeof response.data === 'string' ? JSON.parse(response.data) : response.data;
+      console.log('⚠️ Got JSON response:', jsonData);
       if (jsonData.errno) {
-        throw new Error(`Terabox blocked request: errno ${jsonData.errno} - ${jsonData.errmsg}`);
+        throw new Error(`Terabox blocked: errno ${jsonData.errno} - ${jsonData.errmsg || 'verification required'}`);
       }
     }
     
     const html = typeof response.data === 'string' ? response.data : JSON.stringify(response.data);
+    
+    if (html.length < 1000) {
+      console.log('⚠️ Response too short, likely blocked');
+      throw new Error('Terabox returned minimal response - likely blocked');
+    }
+    
     const $ = cheerio.load(html);
     
     console.log('📄 Got HTML, length:', html.length);
