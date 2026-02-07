@@ -17,14 +17,20 @@ module.exports = async (req, res) => {
     const defaultReferer = `${urlObj.protocol}//${urlObj.hostname}/`;
     const finalReferer = referer || defaultReferer;
 
-    // Detect if this is a Terabox URL
+    // Detect if this is a Terabox URL or Ashlynn proxy
     const isTerabox = url.includes('terabox') || url.includes('dubox') || url.includes('1024tera');
+    const isAshlynnProxy = url.includes('ashlynn.workers.dev');
 
     // For sites that need session cookies, fetch the referer page first
     let cookies = '';
     
-    // For Terabox, add authentication cookies
-    if (isTerabox) {
+    // For Ashlynn proxy, it handles cookies internally - just pass through
+    if (isAshlynnProxy) {
+      console.log('🔵 Ashlynn proxy detected - letting proxy handle authentication');
+      // Ashlynn proxy handles cookies internally, no need to add them
+    }
+    // For direct Terabox URLs, add authentication cookies
+    else if (isTerabox) {
       console.log('🔵 Terabox detected - adding authentication cookies');
       
       // Terabox requires these cookies for download authentication

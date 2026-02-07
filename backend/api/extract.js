@@ -131,20 +131,10 @@ async function extractWithYtDlp(url) {
       return await extractYouTubeRobust(url);
     }
     
-    // For Terabox, use WebView with client-side API calls
+    // For Terabox, use server-side API extraction
     if (platform === 'terabox') {
-      console.log('🔵 Terabox detected - returning WebView instruction with API fallbacks');
-      return {
-        useWebView: true,
-        webViewUrl: url,
-        platform: 'terabox',
-        title: 'Terabox File',
-        thumbnail: 'https://via.placeholder.com/640x360',
-        duration: '0:00',
-        qualities: [],
-        audioFormats: [],
-        message: 'Loading Terabox file...'
-      };
+      console.log('🔵 Terabox detected - using server-side API extraction');
+      return await extractTeraboxServerSide(url);
     }
     
     // For non-YouTube sites, use standard extraction with fallback
@@ -204,6 +194,150 @@ async function extractYouTubeRobust(url) {
     console.error('Python yt-dlp failed:', error.message);
     throw error;
   }
+}
+
+// Extract from Terabox using server-side APIs
+async function extractTeraboxServerSide(url) {
+  console.log('🔵 Terabox: Using server-side API extraction...');
+  
+  const methods = [
+    {
+      name: 'Ashlynn Workers API',
+      fn: async () => {
+        console.log('📡 Method 1: Trying Ashlynn Workers API...');
+        
+        const response = await axios.post('https://terabox.ashlynn.workers.dev/api/download', {
+          url: url
+        }, {
+          timeout: 30000,
+          headers: {
+            'Content-Type': 'application/json',
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+          }
+        });
+        
+        const data = response.data;
+        console.log('Ashlynn response:', JSON.stringify(data).substring(0, 300));
+        
+        if (data && data.file_name && data.dlink) {
+          console.log('✅ Got file info from Ashlynn!');
+          
+          // Construct proxy download URL
+          const proxyUrl = `https://terabox.ashlynn.workers.dev/proxy?url=${encodeURIComponent(data.dlink)}&file_name=${encodeURIComponent(data.file_name)}&cookie=ndus%3Ddefault`;
+          
+          const fileSize = parseInt(data.size) || 0;
+          const sizeMB = (fileSize / (1024 * 1024)).toFixed(2);
+          
+          return {
+            title: data.file_name || 'Terabox File',
+            thumbnail: data.thumbnail || 'https://via.placeholder.com/640x360',
+            duration: '0:00',
+            qualities: [
+              {
+                quality: 'Original',
+                format: data.file_name?.split('.').pop()?.toLowerCase() || 'mp4',
+                size: `${sizeMB} MB`,
+                url: proxyUrl,
+                hasAudio: true,
+                hasVideo: true,
+                needsProxy: false // Ashlynn proxy handles everything
+              }
+            ],
+            audioFormats: [],
+            platform: 'terabox',
+            extractionMethod: 'ashlynn-workers'
+          };
+        }
+        
+        throw new Error('No file info in Ashlynn response');
+      }
+    },
+    {
+      name: 'terabox.hnn.workers.dev',
+      fn: async () => {
+        console.log('📡 Method 2: Trying terabox.hnn.workers.dev...');
+        
+        const shareIdMatch = url.match(/\/s\/([a-zA-Z0-9_-]+)/);
+        if (!shareIdMatch) throw new Error('Invalid share ID');
+        
+        const shareId = shareIdMatch[1];
+        const infoUrl = `https://terabox.hnn.workers.dev/api/get-info?shorturl=${shareId}&pwd=`;
+        
+        const infoResponse = await axios.get(infoUrl, {
+          timeout: 20000,
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+            'Accept': 'application/json'
+          }
+        });
+        
+        const fileInfo = infoResponse.data;
+        if (!fileInfo || !fileInfo.list || fileInfo.list.length === 0) {
+          throw new Error('No file info');
+        }
+        
+        const file = fileInfo.list[0];
+        const downloadUrl = 'https://terabox.hnn.workers.dev/api/get-download';
+        
+        const downloadResponse = await axios.post(downloadUrl, {
+          shareid: fileInfo.shareid,
+          uk: fileInfo.uk,
+          sign: fileInfo.sign,
+          timestamp: fileInfo.timestamp,
+          fs_id: file.fs_id
+        }, {
+          timeout: 20000,
+          headers: {
+            'Content-Type': 'application/json',
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+          }
+        });
+        
+        if (downloadResponse.data && downloadResponse.data.downloadLink) {
+          console.log('✅ terabox.hnn.workers.dev SUCCESS');
+          const fileSize = file.size || 0;
+          const sizeMB = (fileSize / (1024 * 1024)).toFixed(2);
+          
+          return {
+            title: file.server_filename || 'Terabox File',
+            thumbnail: file.thumbs?.url3 || file.thumbs?.url2 || 'https://via.placeholder.com/640x360',
+            duration: '0:00',
+            qualities: [
+              {
+                quality: 'Original',
+                format: file.server_filename?.split('.').pop()?.toLowerCase() || 'mp4',
+                size: `${sizeMB} MB`,
+                url: downloadResponse.data.downloadLink,
+                hasAudio: true,
+                hasVideo: true,
+                needsProxy: true
+              }
+            ],
+            audioFormats: [],
+            platform: 'terabox',
+            extractionMethod: 'terabox.hnn.workers.dev'
+          };
+        }
+        throw new Error('No download link');
+      }
+    }
+  ];
+  
+  // Try each method
+  for (const method of methods) {
+    try {
+      console.log(`⏳ Trying ${method.name}...`);
+      const result = await method.fn();
+      console.log(`✅ ${method.name} succeeded!`);
+      return result;
+    } catch (e) {
+      console.log(`❌ ${method.name} failed:`, e.message);
+      continue;
+    }
+  }
+  
+  console.error('❌ ALL Terabox server-side methods failed');
+  throw new Error('Terabox extraction failed. The file may be private, expired, or require authentication.');
 }
 
 // Extract from Terabox using yt-dlp with cookies
