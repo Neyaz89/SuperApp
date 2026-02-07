@@ -226,9 +226,13 @@ async function extractTeraboxServerSide(url) {
         });
         
         console.log('Info response status:', infoResponse.status);
+        console.log('Info response data:', JSON.stringify(infoResponse.data).substring(0, 500));
         const fileInfo = infoResponse.data;
         
         if (!fileInfo || fileInfo.errno !== 0 || !fileInfo.list || fileInfo.list.length === 0) {
+          console.log('Response errno:', fileInfo?.errno);
+          console.log('Response has list:', !!fileInfo?.list);
+          console.log('List length:', fileInfo?.list?.length);
           throw new Error('No file info in response');
         }
         
