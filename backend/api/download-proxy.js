@@ -17,9 +17,32 @@ module.exports = async (req, res) => {
     const defaultReferer = `${urlObj.protocol}//${urlObj.hostname}/`;
     const finalReferer = referer || defaultReferer;
 
+    // Detect if this is a Terabox URL
+    const isTerabox = url.includes('terabox') || url.includes('dubox') || url.includes('1024tera');
+
     // For sites that need session cookies, fetch the referer page first
     let cookies = '';
-    if (url.includes('hdtube.porn') || url.includes('get_file')) {
+    
+    // For Terabox, add authentication cookies
+    if (isTerabox) {
+      console.log('🔵 Terabox detected - adding authentication cookies');
+      
+      // Terabox requires these cookies for download authentication
+      cookies = [
+        'browserid=ECp8myR7LciVVyrKxhjseu5DsPlsBGfcO2llDtQXqlF9ol1xSxrOyu-zQOo=',
+        '__bid_n=18de05eca9a9ef426f4207',
+        'ndus=Ye4ozFx5eHuiHedfAOmdECQ1cUYjXwfZF6VF4QbD',
+        'TSID=JmuRgIKcaPqMjlzvZE5wXOJD96SkO594',
+        'PANWEB=1',
+        'csrfToken=8nN5Q8Y5H71nPyC8NHxBYAcr',
+        'lang=en',
+        'ndut_fmt=A66A9E7BD20D40C268FB5C44A4E512FB76288B038CE8454BBB5B6BA0DB474814'
+      ].join('; ');
+      
+      console.log('✓ Added Terabox authentication cookies');
+    }
+    // For adult sites, fetch session cookies
+    else if (url.includes('hdtube.porn') || url.includes('get_file')) {
       try {
         console.log('🍪 Fetching session cookies from:', finalReferer);
         const pageResponse = await axios.get(finalReferer, {

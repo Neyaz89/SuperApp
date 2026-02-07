@@ -312,6 +312,11 @@ function guessFormat(url) {
 function requiresProxy(url) {
   const lowerUrl = url.toLowerCase();
   
+  // Terabox requires cookies for authentication
+  if (lowerUrl.includes('terabox') || lowerUrl.includes('dubox') || lowerUrl.includes('1024tera')) {
+    return true;
+  }
+  
   // Adult sites that require referer/cookies
   const proxyDomains = [
     'pornhub.com',
