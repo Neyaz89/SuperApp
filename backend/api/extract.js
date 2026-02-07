@@ -131,23 +131,20 @@ async function extractWithYtDlp(url) {
       return await extractYouTubeRobust(url);
     }
     
-    // For Terabox, use yt-dlp with cookies (ONLY working method)
+    // For Terabox, use Python script with cookies
     if (platform === 'terabox') {
-      console.log('🔵 Terabox detected - using yt-dlp with cookies');
+      console.log('🔵 Terabox detected - using Python script with cookies');
       
       const fs = require('fs');
       const cookieFile = '/app/cookies/terabox_cookies.txt';
       
       // Check if cookies exist
       if (fs.existsSync(cookieFile)) {
-        console.log('✓ Terabox cookies found - using yt-dlp');
+        console.log('✓ Terabox cookies found - using Python extractor');
         return await extractTeraboxWithYtDlp(url);
       } else {
         console.log('❌ Terabox cookies not found');
-        console.log('📝 Terabox requires authentication cookies to work');
-        
-        // Return error message with instructions
-        throw new Error('Terabox requires authentication. Please add cookies to backend/cookies/terabox_cookies.txt and redeploy. See TERABOX_SETUP.md for instructions.');
+        throw new Error('Terabox requires authentication cookies');
       }
     }
     
@@ -406,7 +403,7 @@ async function extractTeraboxServerSide(url) {
 
 // Extract from Terabox using yt-dlp with cookies
 async function extractTeraboxWithYtDlp(url) {
-  console.log('🔵 Terabox: Using Python script with cookies...');
+  console.log('🔵 Terabox: Using terabox-downloader Python package...');
   
   const fs = require('fs');
   const cookieFile = '/app/cookies/terabox_cookies.txt';
@@ -420,10 +417,10 @@ async function extractTeraboxWithYtDlp(url) {
   console.log('✓ Using Terabox cookies from:', cookieFile);
   
   try {
-    const pythonScript = '/app/terabox_extract_with_cookies.py';
+    const pythonScript = '/app/terabox_working.py';
     const command = `python3 ${pythonScript} "${url}" "${cookieFile}"`;
     
-    console.log('Running Python Terabox extractor with cookies...');
+    console.log('Running terabox-downloader package...');
     
     const { stdout, stderr } = await execAsync(command, {
       timeout: 30000,
@@ -454,7 +451,7 @@ async function extractTeraboxWithYtDlp(url) {
         {
           quality: 'Original',
           format: result.title?.split('.').pop()?.toLowerCase() || 'mp4',
-          size: `${sizeMB} MB`,
+          size: result.file_size || `${sizeMB} MB`,
           url: result.download_link,
           hasAudio: true,
           hasVideo: true,
@@ -463,7 +460,7 @@ async function extractTeraboxWithYtDlp(url) {
       ],
       audioFormats: [],
       platform: 'terabox',
-      extractionMethod: 'terabox-authenticated'
+      extractionMethod: 'terabox-downloader-package'
     };
     
   } catch (error) {
