@@ -187,24 +187,24 @@ async function extractYouTubeRobust(url) {
   }
 }
 
-// Extract from Terabox - Use HTML Scraper
+// Extract from Terabox - Use client-side WebView
 async function extractTerabox(url) {
-  console.log('🔵 Terabox: Using HTML Scraper...');
+  console.log('🔵 Terabox: Server-side extraction blocked - returning WebView instruction...');
   
-  // Try HTML Scraper (extracts dlink from page)
-  try {
-    const { extractTeraboxHTML } = require('../extractors/terabox-html-scraper');
-    const result = await extractTeraboxHTML(url);
-    if (result && result.qualities && result.qualities.length > 0) {
-      console.log('✅ Terabox HTML Scraper extraction successful!');
-      return result;
-    }
-  } catch (e) {
-    console.log('Terabox HTML Scraper failed:', e.message);
-  }
-
-  console.log('⚠️ Terabox HTML Scraper failed - falling back to Universal Scraper');
-  throw new Error('Terabox extraction failed - will try Universal Scraper');
+  // Terabox blocks all server-side extraction methods
+  // Return a special response telling frontend to use WebView
+  return {
+    title: 'Terabox File',
+    thumbnail: 'https://via.placeholder.com/640x360',
+    duration: '0:00',
+    qualities: [],
+    audioFormats: [],
+    platform: 'terabox',
+    extractionMethod: 'webview-required',
+    useWebView: true, // Flag for frontend
+    webViewUrl: url, // Original URL to load in WebView
+    message: 'Terabox requires browser verification. Opening in WebView...'
+  };
 }
 
 // Format Python yt-dlp response
