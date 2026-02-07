@@ -41,12 +41,6 @@ module.exports = async (req, res) => {
     try {
       const result = await extractWithYtDlp(url);
       
-      // Check if this is a WebView instruction (Terabox)
-      if (result && result.useWebView) {
-        console.log('✅ Returning WebView instruction to client');
-        return res.json(result);
-      }
-      
       if (result && result.qualities && result.qualities.length > 0) {
         console.log(`✅ yt-dlp SUCCESS - Returning ${result.qualities.length} qualities to client`);
         console.log('Sample quality:', JSON.stringify(result.qualities[0]));
@@ -130,9 +124,16 @@ async function extractWithYtDlp(url) {
       return await extractYouTubeRobust(url);
     }
     
-    // For Terabox, use generic extractor
+    // For Terabox, use working API
     if (platform === 'terabox') {
-      return await extractTerabox(url);
+      try {
+        const result = await extractTerabox(url);
+        console.log('✅ Terabox extraction returned result');
+        return result;
+      } catch (e) {
+        console.log('❌ Terabox extraction failed:', e.message);
+        throw e;
+      }
     }
     
     // For non-YouTube sites, use standard extraction with fallback
@@ -194,26 +195,139 @@ async function extractYouTubeRobust(url) {
   }
 }
 
-// Extract from Terabox - Use working third-party API
+// Extract from Terabox - Use multiple working methods with proper error handling
 async function extractTerabox(url) {
-  console.log('🔵 Terabox: Using terabox.hnn.workers.dev API...');
+  console.log('🔵 Terabox: Starting extraction with multiple methods...');
   
-  // Extract share ID
+  // Extract share ID from various Terabox URL formats
   const shareIdMatch = url.match(/\/s\/([a-zA-Z0-9_-]+)/);
   const shareId = shareIdMatch ? shareIdMatch[1] : null;
   
   if (!shareId) {
-    throw new Error('Could not extract share ID from URL');
+    console.error('❌ Could not extract share ID from URL:', url);
+    throw new Error('Invalid Terabox URL - could not extract share ID');
   }
   
-  console.log('📋 Share ID:', shareId);
+  console.log('📋 Share ID extracted:', shareId);
   
+  // Method 1: terabox.hnn.workers.dev API (2-step process)
   try {
+    console.log('📡 Method 1: Trying terabox.hnn.workers.dev API...');
+    
     // Step 1: Get file info
-    console.log('📡 Step 1: Getting file info...');
     const infoUrl = `https://terabox.hnn.workers.dev/api/get-info?shorturl=${shareId}&pwd=`;
+    console.log('📥 Step 1: Fetching file info from:', infoUrl);
     
     const infoResponse = await axios.get(infoUrl, {
+      timeout: 20000,
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept': 'application/json',
+        'Accept-Language': 'en-US,en;q=0.9',
+        'Referer': 'https://terabox.hnn.workers.dev/',
+        'Origin': 'https://terabox.hnn.workers.dev'
+      }
+    });
+    
+    console.log('📊 Info response status:', infoResponse.status);
+    console.log('📊 Info response data keys:', Object.keys(infoResponse.data || {}));
+    
+    const fileInfo = infoResponse.data;
+    
+    // Validate response structure
+    if (!fileInfo || !fileInfo.list || fileInfo.list.length === 0) {
+      console.error('❌ Invalid response structure from get-info API');
+      throw new Error('Invalid file info response');
+    }
+    
+    const file = fileInfo.list[0];
+    console.log('✅ File info retrieved:', {
+      filename: file.server_filename,
+      size: file.size,
+      fs_id: file.fs_id
+    });
+    
+    // Step 2: Get download link
+    const downloadApiUrl = 'https://terabox.hnn.workers.dev/api/get-download';
+    console.log('📥 Step 2: Requesting download link from:', downloadApiUrl);
+    
+    const downloadPayload = {
+      shareid: fileInfo.shareid,
+      uk: fileInfo.uk,
+      sign: fileInfo.sign,
+      timestamp: fileInfo.timestamp,
+      fs_id: file.fs_id
+    };
+    
+    console.log('📤 Download payload:', downloadPayload);
+    
+    const downloadResponse = await axios.post(downloadApiUrl, downloadPayload, {
+      timeout: 20000,
+      headers: {
+        'Content-Type': 'application/json',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept': 'application/json',
+        'Accept-Language': 'en-US,en;q=0.9',
+        'Origin': 'https://terabox.hnn.workers.dev',
+        'Referer': 'https://terabox.hnn.workers.dev/',
+        'sec-ch-ua': '"Not/A)Brand";v="8", "Chromium";v="126", "Google Chrome";v="126"',
+        'sec-ch-ua-mobile': '?0',
+        'sec-ch-ua-platform': '"Windows"',
+        'sec-fetch-dest': 'empty',
+        'sec-fetch-mode': 'cors',
+        'sec-fetch-site': 'same-origin'
+      }
+    });
+    
+    console.log('� Download response status:', downloadResponse.status);
+    console.log('📊 Download response data:', JSON.stringify(downloadResponse.data).substring(0, 200));
+    
+    // Check if we got a valid download link
+    if (downloadResponse.data && downloadResponse.data.downloadLink) {
+      const downloadLink = downloadResponse.data.downloadLink;
+      console.log('✅ SUCCESS! Got download link from Method 1');
+      console.log('🔗 Download URL:', downloadLink.substring(0, 100) + '...');
+      
+      const fileSize = file.size || 0;
+      const sizeMB = (fileSize / (1024 * 1024)).toFixed(2);
+      
+      return {
+        title: file.server_filename || 'Terabox File',
+        thumbnail: file.thumbs?.url3 || file.thumbs?.url2 || file.thumbs?.url1 || 'https://via.placeholder.com/640x360',
+        duration: '0:00',
+        qualities: [
+          {
+            quality: 'Original',
+            format: file.server_filename?.split('.').pop()?.toLowerCase() || 'mp4',
+            size: `${sizeMB} MB`,
+            url: downloadLink,
+            hasAudio: true,
+            hasVideo: true,
+            needsProxy: true // Terabox requires proxy with cookies
+          }
+        ],
+        audioFormats: [],
+        platform: 'terabox',
+        extractionMethod: 'terabox.hnn.workers.dev'
+      };
+    } else {
+      console.error('❌ No downloadLink in response:', downloadResponse.data);
+      throw new Error('Download link not found in API response');
+    }
+  } catch (e) {
+    console.error('❌ Method 1 (terabox.hnn.workers.dev) failed:', e.message);
+    if (e.response) {
+      console.error('Response status:', e.response.status);
+      console.error('Response data:', JSON.stringify(e.response.data).substring(0, 200));
+    }
+  }
+  
+  // Method 2: Try teraboxdownloader.com API
+  try {
+    console.log('📡 Method 2: Trying teraboxdownloader.com API...');
+    const apiUrl = `https://www.teraboxdownloader.com/api/get-info?url=${encodeURIComponent(url)}`;
+    
+    const response = await axios.get(apiUrl, {
       timeout: 20000,
       headers: {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
@@ -221,73 +335,75 @@ async function extractTerabox(url) {
       }
     });
     
-    const fileInfo = infoResponse.data;
-    console.log('✅ Got file info');
-    
-    if (!fileInfo.list || fileInfo.list.length === 0) {
-      throw new Error('No files found in share');
+    if (response.data && response.data.downloadLink) {
+      console.log('✅ SUCCESS! Got download link from Method 2');
+      
+      return {
+        title: response.data.fileName || 'Terabox File',
+        thumbnail: response.data.thumbnail || 'https://via.placeholder.com/640x360',
+        duration: '0:00',
+        qualities: [
+          {
+            quality: 'Original',
+            format: 'mp4',
+            size: response.data.fileSize || 'Unknown',
+            url: response.data.downloadLink,
+            hasAudio: true,
+            hasVideo: true,
+            needsProxy: true
+          }
+        ],
+        audioFormats: [],
+        platform: 'terabox',
+        extractionMethod: 'teraboxdownloader.com'
+      };
     }
+  } catch (e) {
+    console.error('❌ Method 2 (teraboxdownloader.com) failed:', e.message);
+  }
+  
+  // Method 3: Try playterabox.com API
+  try {
+    console.log('📡 Method 3: Trying playterabox.com API...');
+    const apiUrl = `https://playterabox.com/api/download?url=${encodeURIComponent(url)}`;
     
-    const file = fileInfo.list[0];
-    console.log('📄 File:', file.server_filename);
-    
-    // Step 2: Get download link
-    console.log('📡 Step 2: Getting download link...');
-    const downloadUrl = 'https://terabox.hnn.workers.dev/api/get-download';
-    
-    const downloadResponse = await axios.post(downloadUrl, {
-      shareid: fileInfo.shareid,
-      uk: fileInfo.uk,
-      sign: fileInfo.sign,
-      timestamp: fileInfo.timestamp,
-      fs_id: file.fs_id
-    }, {
+    const response = await axios.get(apiUrl, {
       timeout: 20000,
       headers: {
-        'Content-Type': 'application/json',
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-        'Accept': 'application/json',
-        'Origin': 'https://terabox.hnn.workers.dev',
-        'Referer': 'https://terabox.hnn.workers.dev/'
+        'Accept': 'application/json'
       }
     });
     
-    const downloadData = downloadResponse.data;
-    
-    if (!downloadData.downloadLink) {
-      throw new Error('No download link in response');
+    if (response.data && response.data.download_url) {
+      console.log('✅ SUCCESS! Got download link from Method 3');
+      
+      return {
+        title: response.data.file_name || 'Terabox File',
+        thumbnail: response.data.thumbnail || 'https://via.placeholder.com/640x360',
+        duration: '0:00',
+        qualities: [
+          {
+            quality: 'Original',
+            format: 'mp4',
+            size: response.data.file_size || 'Unknown',
+            url: response.data.download_url,
+            hasAudio: true,
+            hasVideo: true,
+            needsProxy: true
+          }
+        ],
+        audioFormats: [],
+        platform: 'terabox',
+        extractionMethod: 'playterabox.com'
+      };
     }
-    
-    console.log('✅ Got download link!');
-    
-    // Format file size
-    const fileSize = file.size || 0;
-    const sizeMB = (fileSize / (1024 * 1024)).toFixed(2);
-    
-    return {
-      title: file.server_filename || 'Terabox File',
-      thumbnail: file.thumbs?.url3 || file.thumbs?.url2 || 'https://via.placeholder.com/640x360',
-      duration: '0:00',
-      qualities: [
-        {
-          quality: 'Original',
-          format: file.server_filename?.split('.').pop() || 'mp4',
-          size: `${sizeMB} MB`,
-          url: downloadData.downloadLink,
-          hasAudio: true,
-          hasVideo: true,
-          needsProxy: false
-        }
-      ],
-      audioFormats: [],
-      platform: 'terabox',
-      extractionMethod: 'terabox.hnn.workers.dev API'
-    };
-    
-  } catch (error) {
-    console.log('❌ Terabox API failed:', error.message);
-    throw error;
+  } catch (e) {
+    console.error('❌ Method 3 (playterabox.com) failed:', e.message);
   }
+  
+  console.error('❌ ALL Terabox extraction methods failed');
+  throw new Error('Terabox extraction failed - all API methods exhausted. The file may be private or the link may be expired.');
 }
 
 // Format Python yt-dlp response
