@@ -55,41 +55,65 @@ async function extractTeraboxHTML(url) {
       try {
         const locals = JSON.parse(localsMatch[1]);
         console.log('✅ Found window.locals');
+        console.log('Keys:', Object.keys(locals));
         
         if (locals.file_list && locals.file_list.length > 0) {
           const file = locals.file_list[0];
+          console.log('File keys:', Object.keys(file));
           title = file.server_filename || title;
           fileSize = file.size || 0;
           thumbnail = file.thumbs?.url3 || file.thumbs?.url2 || '';
           
           if (file.dlink) {
-            console.log('✅ Found dlink in window.locals');
+            console.log('✅ Found dlink in window.locals:', file.dlink.substring(0, 100) + '...');
             videoUrls.add(file.dlink);
+          } else {
+            console.log('⚠️ No dlink in file object');
           }
+        } else {
+          console.log('⚠️ No file_list in locals');
         }
       } catch (e) {
         console.log('⚠️ Failed to parse window.locals:', e.message);
       }
+    } else {
+      console.log('⚠️ window.locals not found in HTML');
+      
+      // Try to find any JSON data in the HTML
+      const jsonMatches = html.match(/{[^{}]*"dlink"[^{}]*}/g);
+      if (jsonMatches) {
+        console.log(`Found ${jsonMatches.length} potential JSON objects with dlink`);
+        jsonMatches.forEach((match, i) => {
+          console.log(`JSON ${i}:`, match.substring(0, 200));
+        });
+      }
     }
 
     // Method 2: Look for video URLs in script tags
+    console.log('🔍 Searching script tags for dlink...');
+    let scriptCount = 0;
     $('script').each((i, elem) => {
       const scriptContent = $(elem).html();
       if (!scriptContent) return;
+      scriptCount++;
       
       // Look for dlink patterns
       const dlinkMatches = scriptContent.match(/"dlink"\s*:\s*"([^"]+)"/g);
       if (dlinkMatches) {
+        console.log(`✅ Found ${dlinkMatches.length} dlink(s) in script ${i}`);
         dlinkMatches.forEach(match => {
           const urlMatch = match.match(/"dlink"\s*:\s*"([^"]+)"/);
           if (urlMatch) {
-            const cleanUrl = urlMatch[1].replace(/\\u002F/g, '/').replace(/\\/g, '');
+            let cleanUrl = urlMatch[1].replace(/\\u002F/g, '/').replace(/\\/g, '');
+            console.log('Extracted dlink:', cleanUrl.substring(0, 100) + '...');
             if (cleanUrl.startsWith('http')) {
               videoUrls.add(cleanUrl);
             }
           }
         });
       }
+    });
+    console.log(`Searched ${scriptCount} script tags`);
       
       // Look for direct video URLs
       const videoPatterns = [
