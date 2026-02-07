@@ -191,7 +191,17 @@ async function extractYouTubeRobust(url) {
 async function extractTerabox(url) {
   console.log('🔵 Terabox: Starting extraction...');
   
-  // Try Public API first (most reliable, bypasses IP blocking)
+  // Try HTML Scraper first (extracts directly from page like Universal Scraper)
+  try {
+    const { extractTeraboxHTML } = require('../extractors/terabox-html-scraper');
+    const result = await extractTeraboxHTML(url);
+    console.log('✅ Terabox HTML Scraper extraction successful!');
+    return result;
+  } catch (e) {
+    console.log('Terabox HTML Scraper failed, trying Public API...', e.message);
+  }
+  
+  // Try Public API (uses third-party services)
   try {
     const { extractTeraboxPublicAPI } = require('../extractors/terabox-api-public');
     const result = await extractTeraboxPublicAPI(url);

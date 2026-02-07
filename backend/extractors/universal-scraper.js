@@ -5,6 +5,11 @@ const cheerio = require('cheerio');
 async function extractUniversal(url) {
   console.log('🌐 Universal Scraper: Attempting extraction from', url);
   
+  // Skip Terabox - it needs specialized APIs
+  if (url.includes('terabox') || url.includes('1024tera')) {
+    throw new Error('Terabox requires specialized extraction - use Terabox extractors');
+  }
+  
   try {
     // Fetch the page
     const response = await axios.get(url, {
