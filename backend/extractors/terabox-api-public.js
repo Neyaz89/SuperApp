@@ -17,6 +17,59 @@ async function extractTeraboxPublicAPI(url) {
   // List of working public Terabox downloader APIs
   const apis = [
     {
+      name: 'Terabox Downloader (teraboxvideodownloader.com)',
+      url: 'https://teraboxvideodownloader.com/api/download',
+      method: 'POST',
+      format: (url) => ({ url: url }),
+      parse: (data) => {
+        if (data.response && data.response.length > 0) {
+          const file = data.response[0];
+          return {
+            title: file.filename || file.server_filename || 'Terabox File',
+            downloadUrl: file.downloadLink || file.download_link || file.dlink,
+            thumbnail: file.thumbnail || file.thumbs?.url3,
+            size: file.size || file.filesize
+          };
+        }
+        return null;
+      }
+    },
+    {
+      name: 'Terabox Direct API (terabox-dl.qtcloud.workers.dev)',
+      url: 'https://terabox-dl.qtcloud.workers.dev/api/get-info',
+      method: 'POST',
+      format: (url) => ({ shorturl: shareId, pwd: '' }),
+      parse: (data) => {
+        if (data.ok && data.list && data.list.length > 0) {
+          const file = data.list[0];
+          return {
+            title: file.server_filename || 'Terabox File',
+            downloadUrl: file.dlink,
+            thumbnail: file.thumbs?.url3 || file.thumbs?.url2,
+            size: file.size
+          };
+        }
+        return null;
+      }
+    },
+    {
+      name: 'Terabox API (teradl-api.deno.dev)',
+      url: `https://teradl-api.deno.dev/download?url=${encodeURIComponent(url)}`,
+      method: 'GET',
+      format: () => ({}),
+      parse: (data) => {
+        if (data.downloadLink || data.download_url) {
+          return {
+            title: data.fileName || data.filename || 'Terabox File',
+            downloadUrl: data.downloadLink || data.download_url,
+            thumbnail: data.thumbnail,
+            size: data.fileSize || data.size
+          };
+        }
+        return null;
+      }
+    },
+    {
       name: 'Terabox Downloader API (Primary)',
       url: 'https://terabox-downloader.vercel.app/api/download',
       method: 'POST',
@@ -110,9 +163,19 @@ async function extractTeraboxPublicAPI(url) {
 
       const response = await axios(config);
       
+      // Log response for debugging
+      console.log(`Response status: ${response.status}`);
+      console.log(`Response data type: ${typeof response.data}`);
+      
       // Check if response is valid
       if (response.status !== 200) {
         console.log(`❌ ${api.name} returned status ${response.status}`);
+        continue;
+      }
+      
+      // Check if response is an error
+      if (response.data && response.data.error) {
+        console.log(`❌ ${api.name} returned error: ${response.data.error}`);
         continue;
       }
 

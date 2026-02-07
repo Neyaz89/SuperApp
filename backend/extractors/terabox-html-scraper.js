@@ -18,7 +18,15 @@ async function extractTeraboxHTML(url) {
       maxRedirects: 5,
     });
 
-    const html = response.data;
+    // Check if response is JSON error (Terabox blocking)
+    if (response.headers['content-type']?.includes('application/json')) {
+      const jsonData = typeof response.data === 'string' ? JSON.parse(response.data) : response.data;
+      if (jsonData.errno) {
+        throw new Error(`Terabox blocked request: errno ${jsonData.errno} - ${jsonData.errmsg}`);
+      }
+    }
+    
+    const html = typeof response.data === 'string' ? response.data : JSON.stringify(response.data);
     const $ = cheerio.load(html);
     
     console.log('📄 Got HTML, length:', html.length);

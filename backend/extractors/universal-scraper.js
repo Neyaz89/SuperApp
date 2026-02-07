@@ -211,19 +211,19 @@ function isVideoUrl(url) {
   
   const lowerUrl = url.toLowerCase();
   
+  // CRITICAL: Exclude JavaScript, CSS, and other non-video files
+  if (/\.(js|css|json|xml|txt|html|jpg|jpeg|png|gif|svg|woff|woff2|ttf|eot|ico)(\?|$)/i.test(lowerUrl)) {
+    return false;
+  }
+  
   // Check for video file extensions
   if (/\.(mp4|webm|m4v|mov|avi|mkv|flv|wmv|m3u8|mpd)(\?|$)/i.test(lowerUrl)) {
     return true;
   }
   
-  // Check for common video CDN patterns
-  if (/(?:video|media|cdn|stream|player)/i.test(lowerUrl)) {
+  // Check for common video CDN patterns (but not if it's a JS file)
+  if (/(?:video|media|stream).*\.(mp4|webm|m4v|mov|avi|mkv|flv|wmv)/i.test(lowerUrl)) {
     return true;
-  }
-  
-  // Exclude common non-video URLs
-  if (/\.(jpg|jpeg|png|gif|svg|css|js|json|xml|txt|html)(\?|$)/i.test(lowerUrl)) {
-    return false;
   }
   
   return false;
