@@ -191,130 +191,44 @@ async function extractYouTubeRobust(url) {
 async function extractTerabox(url) {
   console.log('🔵 Terabox: Starting extraction...');
   
-  // Try HTML Scraper first (extracts directly from page like Universal Scraper)
-  try {
-    const { extractTeraboxHTML } = require('../extractors/terabox-html-scraper');
-    const result = await extractTeraboxHTML(url);
-    console.log('✅ Terabox HTML Scraper extraction successful!');
-    return result;
-  } catch (e) {
-    console.log('Terabox HTML Scraper failed, trying Public API...', e.message);
-  }
-  
-  // Try Public API (uses third-party services)
+  // Try Public API first (uses third-party services - most reliable)
   try {
     const { extractTeraboxPublicAPI } = require('../extractors/terabox-api-public');
     const result = await extractTeraboxPublicAPI(url);
-    console.log('✅ Terabox Public API extraction successful!');
-    return result;
+    if (result && result.qualities && result.qualities.length > 0) {
+      console.log('✅ Terabox Public API extraction successful!');
+      return result;
+    }
   } catch (e) {
-    console.log('Terabox Public API failed, trying other methods...', e.message);
+    console.log('Terabox Public API failed:', e.message);
   }
   
-  // Try Puppeteer (best method - bypasses IP blocking)
+  // Try HTML Scraper (extracts directly from page like Universal Scraper)
   try {
-    const { extractTeraboxPuppeteer } = require('../extractors/terabox-puppeteer');
-    const result = await extractTeraboxPuppeteer(url);
-    console.log('✅ Terabox Puppeteer extraction successful!');
-    return result;
+    const { extractTeraboxHTML } = require('../extractors/terabox-html-scraper');
+    const result = await extractTeraboxHTML(url);
+    if (result && result.qualities && result.qualities.length > 0) {
+      console.log('✅ Terabox HTML Scraper extraction successful!');
+      return result;
+    }
   } catch (e) {
-    console.log('Terabox Puppeteer failed, trying scraper...', e.message);
+    console.log('Terabox HTML Scraper failed:', e.message);
   }
   
   // Try scraper (works like a browser, no cookies needed)
   try {
     const { extractTeraboxScraper } = require('../extractors/terabox-scraper');
     const result = await extractTeraboxScraper(url);
-    console.log('✅ Terabox Scraper extraction successful!');
-    return result;
-  } catch (e) {
-    console.log('Terabox Scraper failed, trying proxy...', e.message);
-  }
-  
-  // Try proxy extractor (for public shares)
-  try {
-    const { extractTeraboxProxy } = require('../extractors/terabox-proxy-extractor');
-    const result = await extractTeraboxProxy(url);
-    console.log('✅ Terabox Proxy extraction successful!');
-    return result;
-  } catch (e) {
-    console.log('Terabox Proxy failed, trying direct API...', e.message);
-  }
-  
-  // Try API extractor with cookies
-  try {
-    const { extractTeraboxAPI } = require('../extractors/terabox-api-extractor');
-    const result = await extractTeraboxAPI(url);
-    console.log('✅ Terabox API extraction successful!');
-    return result;
-  } catch (e) {
-    console.log('Terabox API failed, trying Python extractor...', e.message);
-  }
-
-  // Try Python extractor v2
-  const fs = require('fs');
-  const cookieFile = '/app/terabox_cookies.txt';
-  const hasCookies = fs.existsSync(cookieFile);
-  
-  if (hasCookies) {
-    console.log('✓ Using Terabox cookies');
-  }
-
-  try {
-    const pythonScript = '/app/terabox_extract_v2.py';
-    const cookieString = hasCookies ? fs.readFileSync(cookieFile, 'utf8').trim() : '';
-    const command = cookieString 
-      ? `python3 ${pythonScript} "${url}" "${cookieString}"`
-      : `python3 ${pythonScript} "${url}"`;
-    
-    console.log('Running Python Terabox extractor v2...');
-    
-    const { stdout, stderr } = await execAsync(command, {
-      timeout: 30000,
-      maxBuffer: 10 * 1024 * 1024
-    });
-
-    if (stderr && stderr.includes('ERROR')) {
-      console.error('Python error:', stderr);
-      throw new Error(stderr);
-    }
-
-    const result = JSON.parse(stdout);
-    
-    if (result.qualities && result.qualities.length > 0) {
-      console.log('✅ Terabox Python v2 extraction successful!');
+    if (result && result.qualities && result.qualities.length > 0) {
+      console.log('✅ Terabox Scraper extraction successful!');
       return result;
-    } else if (result.error) {
-      throw new Error(result.error);
-    } else {
-      throw new Error('No download link found');
-    }
-    
-  } catch (e) {
-    console.log('Python Terabox v2 failed, trying yt-dlp...', e.message);
-  }
-
-  // Fallback: Try yt-dlp generic extractor
-  try {
-    const command = `yt-dlp --no-check-certificate --skip-download --dump-json --no-warnings --no-playlist --force-generic-extractor "${url}"`;
-    
-    console.log('Running yt-dlp generic extractor...');
-    
-    const { stdout, stderr } = await execAsync(command, {
-      timeout: 30000,
-      maxBuffer: 10 * 1024 * 1024
-    });
-
-    if (stdout && !stderr.includes('ERROR')) {
-      const data = JSON.parse(stdout);
-      console.log('✓ yt-dlp generic extraction success!');
-      return formatYtDlpResponse(data, url);
     }
   } catch (e) {
-    console.log('yt-dlp generic failed:', e.message);
+    console.log('Terabox Scraper failed:', e.message);
   }
 
-  throw new Error('All Terabox extraction methods failed - file may be private or require authentication');
+  console.log('⚠️ All Terabox methods failed - falling back to Universal Scraper');
+  throw new Error('Terabox extraction failed - will try Universal Scraper');
 }
 
 // Format Python yt-dlp response

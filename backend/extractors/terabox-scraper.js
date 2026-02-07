@@ -443,7 +443,14 @@ async function extractTeraboxScraper(url) {
       }
       
       console.log('⚠️ All API attempts failed');
+      
+      // If API failed but we have jsToken, return a fallback that uses the share page
+      // The download will need to be proxied through a service
+      console.log('⚠️ Returning fallback - user must download from Terabox directly');
+      throw new Error('Terabox API blocked - errno 400141 or -6');
     }
+    
+    throw new Error('No jsToken found and no download link in HTML');
     
   } catch (error) {
     console.log('❌ Terabox Scraper failed:', error.message);

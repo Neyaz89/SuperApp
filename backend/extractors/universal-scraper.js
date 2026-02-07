@@ -146,27 +146,36 @@ async function extractUniversal(url) {
 
     console.log(`✅ Universal Scraper found ${uniqueUrls.length} downloadable video URL(s) (filtered out previews)`);
 
-    // Create quality entries
-    uniqueUrls.forEach((videoUrl, index) => {
+    // Create quality entries with real file sizes
+    const sizePromises = uniqueUrls.map(async (videoUrl, index) => {
       const quality = guessQuality(videoUrl);
       const format = guessFormat(videoUrl);
       
       // Check if URL needs proxy (adult sites, sites with auth)
       const needsProxy = requiresProxy(videoUrl);
       
-      // Estimate file size based on quality (for better UX)
-      const estimatedSize = estimateFileSize(quality, format);
+      // Try to fetch real file size
+      let size = await fetchFileSize(videoUrl);
       
-      qualities.push({
+      // Fallback to estimate if HEAD request failed
+      if (!size) {
+        size = estimateFileSize(quality, format);
+      }
+      
+      return {
         quality: quality || `Video ${index + 1}`,
         format: format,
-        size: estimatedSize,
+        size: size,
         url: videoUrl,
         hasAudio: true,
         hasVideo: true,
         needsProxy: needsProxy, // Flag for frontend
-      });
+      };
     });
+    
+    // Wait for all size fetches to complete
+    const resolvedQualities = await Promise.all(sizePromises);
+    qualities.push(...resolvedQualities);
 
     // Extract title
     const title = $('title').text().trim() || 
@@ -316,18 +325,49 @@ function requiresProxy(url) {
   return proxyDomains.some(domain => lowerUrl.includes(domain));
 }
 
+async function fetchFileSize(url) {
+  try {
+    // Make HEAD request to get Content-Length
+    const response = await axios.head(url, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+        'Accept': '*/*',
+      },
+      timeout: 5000,
+      maxRedirects: 5,
+    });
+    
+    const contentLength = response.headers['content-length'];
+    if (contentLength) {
+      const bytes = parseInt(contentLength);
+      return formatBytes(bytes);
+    }
+  } catch (e) {
+    // HEAD request failed, ignore
+  }
+  return null;
+}
+
+function formatBytes(bytes) {
+  if (bytes === 0) return '0 B';
+  const k = 1024;
+  const sizes = ['B', 'KB', 'MB', 'GB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
+}
+
 function estimateFileSize(quality, format) {
   // Estimate file size based on quality (assuming ~10 min video)
   // These are rough estimates for better UX
   const estimates = {
-    '2160p': '1.8 GB',
-    '1440p': '1.2 GB',
-    '1080p': '800 MB',
-    '720p': '400 MB',
-    '480p': '200 MB',
-    '360p': '100 MB',
-    '240p': '50 MB',
-    'HD': '500 MB',
+    '2160p': '~1.8 GB',
+    '1440p': '~1.2 GB',
+    '1080p': '~800 MB',
+    '720p': '~400 MB',
+    '480p': '~200 MB',
+    '360p': '~100 MB',
+    '240p': '~50 MB',
+    'HD': '~500 MB',
   };
   
   // For HLS/DASH streams, show "Streaming"
