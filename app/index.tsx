@@ -140,6 +140,17 @@ export default function HomeScreen() {
       // Fetch real media info (including Terabox via server-side APIs)
       const mediaData = await mediaExtractor.extractMediaInfo(url, platform);
       
+      // Check if WebView extraction is needed (for Terabox)
+      if (mediaData.useWebView && mediaData.webViewUrl) {
+        console.log('WebView extraction required - navigating to Terabox WebView screen');
+        setLoading(false);
+        router.push({
+          pathname: '/terabox-extract',
+          params: { url: mediaData.webViewUrl }
+        });
+        return;
+      }
+      
       console.log('Extraction successful:', mediaData.title);
       console.log('Video qualities received:', mediaData.qualities.length);
       console.log('Audio formats received:', mediaData.audioFormats.length);

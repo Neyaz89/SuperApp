@@ -29,6 +29,7 @@ export default function TeraboxExtractScreen() {
 
     // Update media info with extracted data
     setMediaInfo({
+      url: url, // Add original URL for referer
       title: data.title,
       thumbnail: data.thumbnail || 'https://via.placeholder.com/640x360',
       duration: '0:00',
@@ -38,7 +39,8 @@ export default function TeraboxExtractScreen() {
           format: data.title.split('.').pop() || 'mp4',
           size: `${sizeMB} MB`,
           url: data.downloadUrl,
-        },
+          needsProxy: true, // Terabox needs proxy with cookies
+        } as any,
       ],
       audioFormats: [],
       platform: 'terabox',

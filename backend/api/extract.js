@@ -124,16 +124,20 @@ async function extractWithYtDlp(url) {
       return await extractYouTubeRobust(url);
     }
     
-    // For Terabox, use working API
+    // For Terabox, use client-side WebView extraction (APIs are blocked by Cloudflare)
     if (platform === 'terabox') {
-      try {
-        const result = await extractTerabox(url);
-        console.log('✅ Terabox extraction returned result');
-        return result;
-      } catch (e) {
-        console.log('❌ Terabox extraction failed:', e.message);
-        throw e;
-      }
+      console.log('🔵 Terabox detected - returning WebView instruction to client');
+      return {
+        useWebView: true,
+        webViewUrl: url,
+        platform: 'terabox',
+        title: 'Terabox File',
+        thumbnail: 'https://via.placeholder.com/640x360',
+        duration: '0:00',
+        qualities: [],
+        audioFormats: [],
+        message: 'Loading Terabox file...'
+      };
     }
     
     // For non-YouTube sites, use standard extraction with fallback
