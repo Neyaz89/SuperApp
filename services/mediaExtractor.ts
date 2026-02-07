@@ -66,8 +66,15 @@ export class MediaExtractor {
           qualityCount: data.qualities?.length,
           audioCount: data.audioFormats?.length,
           platform: data.platform,
-          extractionMethod: data.extractionMethod
+          extractionMethod: data.extractionMethod,
+          useWebView: data.useWebView
         });
+
+        // Check if WebView extraction is needed (BEFORE validating qualities)
+        if (data.useWebView) {
+          console.log('✅ WebView extraction required - returning WebView instruction');
+          return data;
+        }
 
         // Log first 3 video URLs for debugging
         if (data.qualities && data.qualities.length > 0) {
