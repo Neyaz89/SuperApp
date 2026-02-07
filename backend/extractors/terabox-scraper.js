@@ -277,8 +277,9 @@ async function extractTeraboxScraper(url) {
     if (jsToken) {
       console.log('📡 Making API call with jsToken...');
       
-      // Build API URL - use exact format that browser uses
-      const apiUrl = `https://www.terabox.app/share/list?app_id=250528&web=1&channel=dubox&clienttype=0&jsToken=${jsToken}&page=1&num=20&by=name&order=asc&site_referer=&shorturl=${shareId}&root=1`;
+      // Build API URL with ALL required parameters to avoid errno 105
+      const timestamp = Date.now();
+      const apiUrl = `https://www.terabox.app/share/list?app_id=250528&web=1&channel=dubox&clienttype=0&jsToken=${jsToken}&dp-logid=&page=1&num=20&by=name&order=asc&site_referer=&shorturl=${shareId}&root=1&pwd=`;
       
       console.log('API URL:', apiUrl);
       
@@ -303,13 +304,17 @@ async function extractTeraboxScraper(url) {
       });
     
     if (!apiResponse.ok) {
+      console.log(`⚠️ API returned ${apiResponse.status}, trying to extract from HTML anyway`);
       throw new Error(`API returned ${apiResponse.status}`);
     }
     
     const apiData = await apiResponse.json();
     console.log('📦 API response errno:', apiData.errno);
     
+    // If errno is 105, the link might be expired or need password
+    // But let's try to extract from HTML anyway
     if (apiData.errno !== 0) {
+      console.log(`⚠️ API error ${apiData.errno}, will try to extract from HTML`);
       throw new Error(`API error: ${apiData.errno}`);
     }
     
@@ -324,8 +329,9 @@ async function extractTeraboxScraper(url) {
     let downloadLink = fileInfo.dlink;
     
     if (!downloadLink) {
-      // Try to get download link via API
-      const downloadUrl = `https://www.terabox.app/share/download?app_id=250528&web=1&channel=dubox&clienttype=0&sign=${apiData.sign}&timestamp=${apiData.timestamp}&shareid=${apiData.shareid}&uk=${apiData.uk}&primaryid=${apiData.shareid}&fid_list=[${fileInfo.fs_id}]`;
+      // Try to get download link via download API
+      console.log('📡 Requesting download link...');
+      const downloadUrl = `https://www.terabox.app/share/download?app_id=250528&web=1&channel=dubox&clienttype=0&sign=${apiData.sign}&timestamp=${apiData.timestamp}&shareid=${apiData.shareid}&uk=${apiData.uk}&primaryid=${apiData.shareid}&fid_list=[${fileInfo.fs_id}]&jsToken=${jsToken}`;
       
       const downloadResponse = await fetch(downloadUrl, {
         method: 'GET',
@@ -339,8 +345,9 @@ async function extractTeraboxScraper(url) {
       
       if (downloadResponse.ok) {
         const downloadData = await downloadResponse.json();
-        if (downloadData.list && downloadData.list[0]) {
+        if (downloadData.errno === 0 && downloadData.list && downloadData.list[0]) {
           downloadLink = downloadData.list[0].dlink;
+          console.log('✅ Got download link from download API');
         }
       }
     }
@@ -363,7 +370,10 @@ async function extractTeraboxScraper(url) {
           quality: 'Original',
           format: fileInfo.server_filename?.split('.').pop() || 'mp4',
           size: `${sizeMB} MB`,
-          url: downloadLink
+          url: downloadLink,
+          hasAudio: true,
+          hasVideo: true,
+          needsProxy: false
         }
       ],
       audioFormats: [],
