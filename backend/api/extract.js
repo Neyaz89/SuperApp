@@ -406,7 +406,7 @@ async function extractTeraboxServerSide(url) {
 
 // Extract from Terabox using yt-dlp with cookies
 async function extractTeraboxWithYtDlp(url) {
-  console.log('🔵 Terabox: Using yt-dlp with cookies...');
+  console.log('🔵 Terabox: Using Python script with cookies...');
   
   const fs = require('fs');
   const cookieFile = '/app/cookies/terabox_cookies.txt';
@@ -414,38 +414,60 @@ async function extractTeraboxWithYtDlp(url) {
   // Check if Terabox cookies exist
   if (!fs.existsSync(cookieFile)) {
     console.error('❌ Terabox cookies not found at:', cookieFile);
-    console.log('📝 Please add Terabox cookies to backend/cookies/terabox_cookies.txt');
-    throw new Error('Terabox requires authentication cookies. Please configure cookies.');
+    throw new Error('Terabox requires authentication cookies');
   }
   
   console.log('✓ Using Terabox cookies from:', cookieFile);
   
   try {
-    const command = `yt-dlp --cookies ${cookieFile} --no-check-certificate --skip-download --dump-json --no-warnings --no-playlist "${url}"`;
+    const pythonScript = '/app/terabox_extract_with_cookies.py';
+    const command = `python3 ${pythonScript} "${url}" "${cookieFile}"`;
     
-    console.log('Running yt-dlp with Terabox cookies...');
+    console.log('Running Python Terabox extractor with cookies...');
     
     const { stdout, stderr } = await execAsync(command, {
-      timeout: 45000,
+      timeout: 30000,
       maxBuffer: 10 * 1024 * 1024
     });
 
     if (stderr && stderr.includes('ERROR')) {
-      console.error('yt-dlp error:', stderr);
+      console.error('Python error:', stderr);
       throw new Error(stderr);
     }
 
-    if (!stdout || stdout.trim().length === 0) {
-      throw new Error('No output from yt-dlp');
+    const result = JSON.parse(stdout);
+    
+    if (!result.success) {
+      throw new Error(result.error || 'Extraction failed');
     }
 
-    const data = JSON.parse(stdout);
-    console.log('✓ yt-dlp extraction success! Title:', data.title);
+    console.log('✓ Terabox extraction success! Title:', result.title);
     
-    return formatYtDlpResponse(data, url);
+    const fileSize = result.size_bytes || 0;
+    const sizeMB = (fileSize / (1024 * 1024)).toFixed(2);
+    
+    return {
+      title: result.title || 'Terabox File',
+      thumbnail: result.thumbnail || 'https://via.placeholder.com/640x360',
+      duration: '0:00',
+      qualities: [
+        {
+          quality: 'Original',
+          format: result.title?.split('.').pop()?.toLowerCase() || 'mp4',
+          size: `${sizeMB} MB`,
+          url: result.download_link,
+          hasAudio: true,
+          hasVideo: true,
+          needsProxy: true // Terabox requires proxy with cookies
+        }
+      ],
+      audioFormats: [],
+      platform: 'terabox',
+      extractionMethod: 'terabox-authenticated'
+    };
     
   } catch (error) {
-    console.error('❌ yt-dlp Terabox extraction failed:', error.message);
+    console.error('❌ Terabox extraction failed:', error.message);
     throw error;
   }
 }
