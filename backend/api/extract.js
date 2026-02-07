@@ -191,7 +191,17 @@ async function extractYouTubeRobust(url) {
 async function extractTerabox(url) {
   console.log('🔵 Terabox: Starting extraction...');
   
-  // Try Puppeteer first (best method - bypasses IP blocking)
+  // Try Public API first (most reliable, bypasses IP blocking)
+  try {
+    const { extractTeraboxPublicAPI } = require('../extractors/terabox-api-public');
+    const result = await extractTeraboxPublicAPI(url);
+    console.log('✅ Terabox Public API extraction successful!');
+    return result;
+  } catch (e) {
+    console.log('Terabox Public API failed, trying other methods...', e.message);
+  }
+  
+  // Try Puppeteer (best method - bypasses IP blocking)
   try {
     const { extractTeraboxPuppeteer } = require('../extractors/terabox-puppeteer');
     const result = await extractTeraboxPuppeteer(url);
@@ -294,7 +304,7 @@ async function extractTerabox(url) {
     console.log('yt-dlp generic failed:', e.message);
   }
 
-  throw new Error('Terabox extraction failed - file may be private or require authentication');
+  throw new Error('All Terabox extraction methods failed - file may be private or require authentication');
 }
 
 // Format Python yt-dlp response

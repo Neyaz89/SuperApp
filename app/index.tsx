@@ -137,18 +137,7 @@ export default function HomeScreen() {
 
       console.log('Starting extraction for:', url);
       
-      // For Terabox, use WebView extraction (client-side)
-      if (platform === 'terabox' || url.includes('terabox')) {
-        console.log('🔵 Terabox detected - routing to WebView extraction');
-        setLoading(false);
-        router.push({
-          pathname: '/terabox-extract',
-          params: { url },
-        });
-        return;
-      }
-      
-      // Fetch real media info for other platforms
+      // Fetch real media info (including Terabox via server-side APIs)
       const mediaData = await mediaExtractor.extractMediaInfo(url, platform);
       
       console.log('Extraction successful:', mediaData.title);

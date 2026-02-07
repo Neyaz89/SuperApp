@@ -25,21 +25,7 @@ export class MediaExtractor {
     console.log('Platform:', platform);
     console.log('API URL:', API_URL);
 
-    // For Terabox, use WebView extraction (client-side)
-    if (platform === 'terabox' || url.includes('terabox')) {
-      console.log('🔵 Terabox detected - using WebView extraction');
-      return {
-        title: 'Terabox File',
-        thumbnail: 'https://via.placeholder.com/640x360',
-        duration: '0:00',
-        qualities: [],
-        audioFormats: [],
-        useWebView: true,
-        webViewUrl: url,
-      };
-    }
-
-    // Try API extraction with retries for other platforms
+    // Try API extraction with retries for all platforms (including Terabox)
     for (let attempt = 1; attempt <= 3; attempt++) {
       try {
         console.log(`Attempt ${attempt}/3: Calling API...`);
