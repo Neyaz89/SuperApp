@@ -194,24 +194,100 @@ async function extractYouTubeRobust(url) {
   }
 }
 
-// Extract from Terabox - Use client-side WebView
+// Extract from Terabox - Use working third-party API
 async function extractTerabox(url) {
-  console.log('🔵 Terabox: Server-side extraction blocked - returning WebView instruction...');
+  console.log('🔵 Terabox: Using terabox.hnn.workers.dev API...');
   
-  // Terabox blocks all server-side extraction methods
-  // Return a special response telling frontend to use WebView
-  return {
-    title: 'Terabox File',
-    thumbnail: 'https://via.placeholder.com/640x360',
-    duration: '0:00',
-    qualities: [],
-    audioFormats: [],
-    platform: 'terabox',
-    extractionMethod: 'webview-required',
-    useWebView: true, // Flag for frontend
-    webViewUrl: url, // Original URL to load in WebView
-    message: 'Terabox requires browser verification. Opening in WebView...'
-  };
+  // Extract share ID
+  const shareIdMatch = url.match(/\/s\/([a-zA-Z0-9_-]+)/);
+  const shareId = shareIdMatch ? shareIdMatch[1] : null;
+  
+  if (!shareId) {
+    throw new Error('Could not extract share ID from URL');
+  }
+  
+  console.log('📋 Share ID:', shareId);
+  
+  try {
+    // Step 1: Get file info
+    console.log('📡 Step 1: Getting file info...');
+    const infoUrl = `https://terabox.hnn.workers.dev/api/get-info?shorturl=${shareId}&pwd=`;
+    
+    const infoResponse = await axios.get(infoUrl, {
+      timeout: 20000,
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+        'Accept': 'application/json'
+      }
+    });
+    
+    const fileInfo = infoResponse.data;
+    console.log('✅ Got file info');
+    
+    if (!fileInfo.list || fileInfo.list.length === 0) {
+      throw new Error('No files found in share');
+    }
+    
+    const file = fileInfo.list[0];
+    console.log('📄 File:', file.server_filename);
+    
+    // Step 2: Get download link
+    console.log('📡 Step 2: Getting download link...');
+    const downloadUrl = 'https://terabox.hnn.workers.dev/api/get-download';
+    
+    const downloadResponse = await axios.post(downloadUrl, {
+      shareid: fileInfo.shareid,
+      uk: fileInfo.uk,
+      sign: fileInfo.sign,
+      timestamp: fileInfo.timestamp,
+      fs_id: file.fs_id
+    }, {
+      timeout: 20000,
+      headers: {
+        'Content-Type': 'application/json',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+        'Accept': 'application/json',
+        'Origin': 'https://terabox.hnn.workers.dev',
+        'Referer': 'https://terabox.hnn.workers.dev/'
+      }
+    });
+    
+    const downloadData = downloadResponse.data;
+    
+    if (!downloadData.downloadLink) {
+      throw new Error('No download link in response');
+    }
+    
+    console.log('✅ Got download link!');
+    
+    // Format file size
+    const fileSize = file.size || 0;
+    const sizeMB = (fileSize / (1024 * 1024)).toFixed(2);
+    
+    return {
+      title: file.server_filename || 'Terabox File',
+      thumbnail: file.thumbs?.url3 || file.thumbs?.url2 || 'https://via.placeholder.com/640x360',
+      duration: '0:00',
+      qualities: [
+        {
+          quality: 'Original',
+          format: file.server_filename?.split('.').pop() || 'mp4',
+          size: `${sizeMB} MB`,
+          url: downloadData.downloadLink,
+          hasAudio: true,
+          hasVideo: true,
+          needsProxy: false
+        }
+      ],
+      audioFormats: [],
+      platform: 'terabox',
+      extractionMethod: 'terabox.hnn.workers.dev API'
+    };
+    
+  } catch (error) {
+    console.log('❌ Terabox API failed:', error.message);
+    throw error;
+  }
 }
 
 // Format Python yt-dlp response

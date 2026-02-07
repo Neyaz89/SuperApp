@@ -70,13 +70,18 @@ async function extractUniversal(url) {
             cleanUrl = cleanUrl.replace(/\\u002F/g, '/');
           }
           
-          // Skip share page URLs (we want direct download links only)
-          if (cleanUrl.includes('/sharing/link') || cleanUrl.includes('/wap/sharing')) {
-            return;
+          // CRITICAL: Skip share page URLs (we want direct download links only)
+          if (cleanUrl.includes('/sharing/link') || cleanUrl.includes('/wap/sharing') || 
+              cleanUrl.includes('/indonesian/sharing') || cleanUrl.includes('/japanese/sharing') ||
+              cleanUrl.includes('/thai/sharing') || cleanUrl.includes('/korean/sharing') ||
+              cleanUrl.includes('/hindi/sharing') || cleanUrl.includes('/russian/sharing') ||
+              cleanUrl.includes('/spanish/sharing') || cleanUrl.includes('/portuguese/sharing') ||
+              cleanUrl.includes('/vietnamese/sharing') || cleanUrl.includes('/turkish/sharing')) {
+            return; // Skip this URL
           }
           
-          // Skip preview/thumbnail videos (except actual video thumbnails with ft=video)
-          if ((cleanUrl.includes('preview') || cleanUrl.includes('thumb')) && !cleanUrl.includes('ft=video')) {
+          // Skip thumbnail URLs (unless they have ft=video which means actual video)
+          if (cleanUrl.includes('/thumbnail/') && !cleanUrl.includes('ft=video')) {
             return;
           }
           
