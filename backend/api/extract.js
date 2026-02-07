@@ -56,6 +56,7 @@ module.exports = async (req, res) => {
       }
     } catch (e) {
       console.log('yt-dlp failed:', e.message);
+      console.error('yt-dlp error stack:', e.stack);
     }
 
     // Fallback to API methods
@@ -130,16 +131,20 @@ async function extractWithYtDlp(url) {
       return await extractYouTubeRobust(url);
     }
     
-    // For Terabox, use third-party downloaders
+    // For Terabox, use WebView with client-side API calls
     if (platform === 'terabox') {
-      try {
-        const result = await extractTeraboxThirdParty(url);
-        console.log('✅ Terabox extraction returned result');
-        return result;
-      } catch (e) {
-        console.log('❌ Terabox extraction failed:', e.message);
-        throw e;
-      }
+      console.log('🔵 Terabox detected - returning WebView instruction with API fallbacks');
+      return {
+        useWebView: true,
+        webViewUrl: url,
+        platform: 'terabox',
+        title: 'Terabox File',
+        thumbnail: 'https://via.placeholder.com/640x360',
+        duration: '0:00',
+        qualities: [],
+        audioFormats: [],
+        message: 'Loading Terabox file...'
+      };
     }
     
     // For non-YouTube sites, use standard extraction with fallback
@@ -197,6 +202,52 @@ async function extractYouTubeRobust(url) {
     
   } catch (error) {
     console.error('Python yt-dlp failed:', error.message);
+    throw error;
+  }
+}
+
+// Extract from Terabox using yt-dlp with cookies
+async function extractTeraboxWithYtDlp(url) {
+  console.log('🔵 Terabox: Using yt-dlp with cookies...');
+  
+  const fs = require('fs');
+  const cookieFile = '/app/cookies/terabox_cookies.txt';
+  
+  // Check if Terabox cookies exist
+  if (!fs.existsSync(cookieFile)) {
+    console.error('❌ Terabox cookies not found at:', cookieFile);
+    console.log('📝 Please add Terabox cookies to backend/cookies/terabox_cookies.txt');
+    throw new Error('Terabox requires authentication cookies. Please configure cookies.');
+  }
+  
+  console.log('✓ Using Terabox cookies from:', cookieFile);
+  
+  try {
+    const command = `yt-dlp --cookies ${cookieFile} --no-check-certificate --skip-download --dump-json --no-warnings --no-playlist "${url}"`;
+    
+    console.log('Running yt-dlp with Terabox cookies...');
+    
+    const { stdout, stderr } = await execAsync(command, {
+      timeout: 45000,
+      maxBuffer: 10 * 1024 * 1024
+    });
+
+    if (stderr && stderr.includes('ERROR')) {
+      console.error('yt-dlp error:', stderr);
+      throw new Error(stderr);
+    }
+
+    if (!stdout || stdout.trim().length === 0) {
+      throw new Error('No output from yt-dlp');
+    }
+
+    const data = JSON.parse(stdout);
+    console.log('✓ yt-dlp extraction success! Title:', data.title);
+    
+    return formatYtDlpResponse(data, url);
+    
+  } catch (error) {
+    console.error('❌ yt-dlp Terabox extraction failed:', error.message);
     throw error;
   }
 }
