@@ -23,6 +23,8 @@ async function extractUniversal(url) {
     
     const videoUrls = new Set();
     const qualities = [];
+    
+    console.log('🔍 Searching for video URLs in page...');
 
     // Method 1: Find <video> tags with src
     $('video').each((i, elem) => {
@@ -50,19 +52,25 @@ async function extractUniversal(url) {
       /(https?:\/\/[^\s"'<>]+\.mpd(?:\?[^\s"'<>]*)?)/gi,
       // Common video CDN patterns
       /(https?:\/\/[^\s"'<>]*(?:video|media|cdn|stream)[^\s"'<>]*\.(?:mp4|m3u8|mpd)(?:\?[^\s"'<>]*)?)/gi,
+      // Terabox specific patterns
+      /(https?:\/\/[^\s"'<>]*terabox[^\s"'<>]*)/gi,
+      /(https?:\/\/[^\s"'<>]*dubox[^\s"'<>]*)/gi,
     ];
 
+    console.log('🔍 Searching HTML with regex patterns...');
     videoPatterns.forEach(pattern => {
       const matches = html.match(pattern);
       if (matches) {
+        console.log(`Found ${matches.length} matches with pattern`);
         matches.forEach(match => {
           const cleanUrl = match.replace(/['"\\]/g, '');
-          // Skip preview/thumbnail videos
-          if (cleanUrl.includes('preview') || cleanUrl.includes('thumb') || cleanUrl.includes('screenshot')) {
-            return;
-          }
-          if (isVideoUrl(cleanUrl)) {
-            videoUrls.add(cleanUrl);
+          // Skip preview/thumbnail videos (except Terabox)
+          if (cleanUrl.includes('terabox') || cleanUrl.includes('dubox') || 
+              (!cleanUrl.includes('preview') && !cleanUrl.includes('thumb') && !cleanUrl.includes('screenshot'))) {
+            if (isVideoUrl(cleanUrl)) {
+              videoUrls.add(cleanUrl);
+              console.log('✅ Added URL:', cleanUrl.substring(0, 80) + '...');
+            }
           }
         });
       }
@@ -129,7 +137,14 @@ async function extractUniversal(url) {
     // Convert Set to Array and filter out preview/thumbnail videos
     const uniqueUrls = Array.from(videoUrls).filter(url => {
       const lowerUrl = url.toLowerCase();
-      // Skip preview, thumbnail, screenshot videos
+      
+      // For Terabox, DON'T filter - accept all URLs
+      if (lowerUrl.includes('terabox') || lowerUrl.includes('dubox') || lowerUrl.includes('1024tera')) {
+        console.log('✅ Terabox URL found:', url.substring(0, 100) + '...');
+        return true;
+      }
+      
+      // For other sites, skip preview, thumbnail, screenshot videos
       if (lowerUrl.includes('preview') || lowerUrl.includes('thumb') || lowerUrl.includes('screenshot')) {
         return false;
       }
@@ -214,6 +229,11 @@ function isVideoUrl(url) {
   // CRITICAL: Exclude JavaScript, CSS, and other non-video files
   if (/\.(js|css|json|xml|txt|html|jpg|jpeg|png|gif|svg|woff|woff2|ttf|eot|ico)(\?|$)/i.test(lowerUrl)) {
     return false;
+  }
+  
+  // Terabox URLs are always valid (they contain video data)
+  if (lowerUrl.includes('terabox') || lowerUrl.includes('dubox') || lowerUrl.includes('1024tera')) {
+    return true;
   }
   
   // Check for video file extensions
