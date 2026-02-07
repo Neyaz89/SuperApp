@@ -191,7 +191,19 @@ async function extractYouTubeRobust(url) {
 async function extractTerabox(url) {
   console.log('🔵 Terabox: Starting extraction...');
   
-  // Try Public API first (uses third-party services - most reliable)
+  // Try Working extractor FIRST (most reliable)
+  try {
+    const { extractTeraboxWorking } = require('../extractors/terabox-working');
+    const result = await extractTeraboxWorking(url);
+    if (result && result.qualities && result.qualities.length > 0) {
+      console.log('✅ Terabox Working extraction successful!');
+      return result;
+    }
+  } catch (e) {
+    console.log('Terabox Working failed:', e.message);
+  }
+  
+  // Try Public API (uses third-party services)
   try {
     const { extractTeraboxPublicAPI } = require('../extractors/terabox-api-public');
     const result = await extractTeraboxPublicAPI(url);
@@ -203,7 +215,7 @@ async function extractTerabox(url) {
     console.log('Terabox Public API failed:', e.message);
   }
   
-  // Try HTML Scraper (extracts directly from page like Universal Scraper)
+  // Try HTML Scraper (extracts directly from page)
   try {
     const { extractTeraboxHTML } = require('../extractors/terabox-html-scraper');
     const result = await extractTeraboxHTML(url);
@@ -213,18 +225,6 @@ async function extractTerabox(url) {
     }
   } catch (e) {
     console.log('Terabox HTML Scraper failed:', e.message);
-  }
-  
-  // Try scraper (works like a browser, no cookies needed)
-  try {
-    const { extractTeraboxScraper } = require('../extractors/terabox-scraper');
-    const result = await extractTeraboxScraper(url);
-    if (result && result.qualities && result.qualities.length > 0) {
-      console.log('✅ Terabox Scraper extraction successful!');
-      return result;
-    }
-  } catch (e) {
-    console.log('Terabox Scraper failed:', e.message);
   }
 
   console.log('⚠️ All Terabox methods failed - falling back to Universal Scraper');

@@ -18,7 +18,19 @@ async function extractUniversal(url) {
       maxRedirects: 5,
     });
 
-    const html = response.data;
+    // Check if response is JSON (not HTML)
+    if (response.headers['content-type']?.includes('application/json')) {
+      console.log('⚠️ Response is JSON, not HTML - site may be blocking');
+      throw new Error('Site returned JSON instead of HTML (likely blocking)');
+    }
+    
+    const html = typeof response.data === 'string' ? response.data : JSON.stringify(response.data);
+    
+    // Validate we got HTML
+    if (!html || html.length < 100) {
+      throw new Error('Response too short or empty');
+    }
+    
     const $ = cheerio.load(html);
     
     const videoUrls = new Set();
