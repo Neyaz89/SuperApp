@@ -187,48 +187,12 @@ async function extractYouTubeRobust(url) {
   }
 }
 
-// Extract from Terabox using API extractor
+// Extract from Terabox - Let Universal Scraper handle it
 async function extractTerabox(url) {
-  console.log('🔵 Terabox: Starting extraction...');
+  console.log('🔵 Terabox: Skipping dedicated extractors, will use Universal Scraper...');
   
-  // Try Working extractor FIRST (most reliable)
-  try {
-    const { extractTeraboxWorking } = require('../extractors/terabox-working');
-    const result = await extractTeraboxWorking(url);
-    if (result && result.qualities && result.qualities.length > 0) {
-      console.log('✅ Terabox Working extraction successful!');
-      return result;
-    }
-  } catch (e) {
-    console.log('Terabox Working failed:', e.message);
-  }
-  
-  // Try Public API (uses third-party services)
-  try {
-    const { extractTeraboxPublicAPI } = require('../extractors/terabox-api-public');
-    const result = await extractTeraboxPublicAPI(url);
-    if (result && result.qualities && result.qualities.length > 0) {
-      console.log('✅ Terabox Public API extraction successful!');
-      return result;
-    }
-  } catch (e) {
-    console.log('Terabox Public API failed:', e.message);
-  }
-  
-  // Try HTML Scraper (extracts directly from page)
-  try {
-    const { extractTeraboxHTML } = require('../extractors/terabox-html-scraper');
-    const result = await extractTeraboxHTML(url);
-    if (result && result.qualities && result.qualities.length > 0) {
-      console.log('✅ Terabox HTML Scraper extraction successful!');
-      return result;
-    }
-  } catch (e) {
-    console.log('Terabox HTML Scraper failed:', e.message);
-  }
-
-  console.log('⚠️ All Terabox methods failed - falling back to Universal Scraper');
-  throw new Error('Terabox extraction failed - will try Universal Scraper');
+  // All Terabox APIs are blocked/dead, so just throw error to trigger Universal Scraper
+  throw new Error('Terabox extraction - will use Universal Scraper');
 }
 
 // Format Python yt-dlp response
