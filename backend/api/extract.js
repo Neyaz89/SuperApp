@@ -131,43 +131,9 @@ async function extractWithYtDlp(url) {
       return await extractYouTubeRobust(url);
     }
     
-    // For Terabox, try multiple extraction methods
+    // For Terabox, redirect to third-party downloader website
     if (platform === 'terabox') {
-      console.log('🔵 Terabox detected - trying multiple extraction methods');
-      
-      const fs = require('fs');
-      const cookieFile = '/app/cookies/terabox_cookies.txt';
-      
-      // Method 1: Try Python extractor with cookies
-      if (fs.existsSync(cookieFile)) {
-        try {
-          console.log('✓ Terabox cookies found - trying Python extractor');
-          return await extractTeraboxWithYtDlp(url);
-        } catch (e) {
-          console.log('❌ Python extractor failed:', e.message);
-        }
-      } else {
-        console.log('⚠️ Terabox cookies not found at:', cookieFile);
-      }
-      
-      // Method 2: Try third-party APIs
-      try {
-        console.log('⏳ Trying Terabox third-party APIs...');
-        return await extractTeraboxThirdParty(url);
-      } catch (e) {
-        console.log('❌ Third-party APIs failed:', e.message);
-      }
-      
-      // Method 3: Try direct Terabox extraction
-      try {
-        console.log('⏳ Trying direct Terabox extraction...');
-        return await extractTerabox(url);
-      } catch (e) {
-        console.log('❌ Direct extraction failed:', e.message);
-      }
-      
-      // Method 4: Return WebView instruction as fallback
-      console.log('⚠️ All server-side methods failed - instructing client to use WebView');
+      console.log('🔵 Terabox detected - redirecting to third-party downloader');
       return {
         title: 'Terabox File',
         thumbnail: 'https://via.placeholder.com/640x360',
@@ -176,7 +142,7 @@ async function extractWithYtDlp(url) {
         audioFormats: [],
         platform: 'terabox',
         useWebView: true,
-        webViewUrl: url
+        webViewUrl: `https://terabox-downloader.online/?url=${encodeURIComponent(url)}`
       };
     }
     
