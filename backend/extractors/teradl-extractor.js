@@ -7,98 +7,93 @@ const axios = require('axios');
  */
 
 async function extractWithTeraDL(url) {
-  console.log('🔵 TeraDL: Starting extraction...');
+  console.log('🔵 HNN Workers API: Starting extraction...');
   console.log('🔗 URL:', url);
   
   try {
-    // TeraDL API endpoint
-    const apiUrl = 'https://teradl-api.dapuntaratya.com/generate';
+    // Extract share ID from URL
+    const shareIdMatch = url.match(/\/s\/([a-zA-Z0-9_-]+)/);
+    if (!shareIdMatch) {
+      throw new Error('Invalid Terabox URL - could not extract share ID');
+    }
+    const shareId = shareIdMatch[1];
+    console.log('📋 Share ID:', shareId);
     
-    console.log('📡 Calling TeraDL API:', apiUrl);
+    // Step 1: Get file info
+    const infoUrl = `https://terabox.hnn.workers.dev/api/get-info?shorturl=${shareId}&pwd=`;
+    console.log('📡 Step 1: Getting file info from:', infoUrl);
     
-    const response = await axios.post(apiUrl, {
-      url: url
-    }, {
-      timeout: 30000,
+    const infoResponse = await axios.get(infoUrl, {
+      timeout: 20000,
       headers: {
-        'Content-Type': 'application/json',
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        'Accept': 'application/json',
-        'Origin': 'https://teradl.dapuntaratya.com',
-        'Referer': 'https://teradl.dapuntaratya.com/'
+        'Accept': 'application/json'
       }
     });
     
-    console.log('📊 TeraDL response status:', response.status);
-    console.log('📊 TeraDL response data:', JSON.stringify(response.data).substring(0, 300));
+    console.log('📊 Info response status:', infoResponse.status);
     
-    const data = response.data;
-    
-    // Check if extraction was successful
-    if (!data || data.status !== 'success') {
-      const errorMsg = data?.message || 'Unknown error';
-      console.error('❌ TeraDL API returned error:', errorMsg);
-      throw new Error(`TeraDL API error: ${errorMsg}`);
+    const fileInfo = infoResponse.data;
+    if (!fileInfo || !fileInfo.list || fileInfo.list.length === 0) {
+      throw new Error('No file info found');
     }
     
-    // Extract file information
-    const fileInfo = data.data;
+    const file = fileInfo.list[0];
+    console.log('✅ File info retrieved:', file.server_filename);
     
-    if (!fileInfo || !fileInfo.download_url) {
-      console.error('❌ No download URL in TeraDL response');
-      throw new Error('No download URL found');
-    }
+    // Step 2: Get download link
+    const downloadUrl = 'https://terabox.hnn.workers.dev/api/get-download';
+    console.log('📡 Step 2: Getting download link...');
     
-    console.log('✅ TeraDL SUCCESS!');
-    console.log('📁 File:', fileInfo.file_name);
-    console.log('📏 Size:', fileInfo.file_size);
-    console.log('🔗 Download URL:', fileInfo.download_url.substring(0, 100) + '...');
-    
-    // Parse file size
-    const fileSizeStr = fileInfo.file_size || '0 MB';
-    const sizeMatch = fileSizeStr.match(/([\d.]+)\s*(MB|GB|KB)/i);
-    let sizeMB = 'Unknown';
-    
-    if (sizeMatch) {
-      const value = parseFloat(sizeMatch[1]);
-      const unit = sizeMatch[2].toUpperCase();
-      
-      if (unit === 'GB') {
-        sizeMB = (value * 1024).toFixed(2);
-      } else if (unit === 'MB') {
-        sizeMB = value.toFixed(2);
-      } else if (unit === 'KB') {
-        sizeMB = (value / 1024).toFixed(2);
+    const downloadResponse = await axios.post(downloadUrl, {
+      shareid: fileInfo.shareid,
+      uk: fileInfo.uk,
+      sign: fileInfo.sign,
+      timestamp: fileInfo.timestamp,
+      fs_id: file.fs_id
+    }, {
+      timeout: 20000,
+      headers: {
+        'Content-Type': 'application/json',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+        'Accept': 'application/json'
       }
-      sizeMB = `${sizeMB} MB`;
+    });
+    
+    console.log('📊 Download response status:', downloadResponse.status);
+    
+    if (!downloadResponse.data || !downloadResponse.data.downloadLink) {
+      throw new Error('No download link in response');
     }
     
-    // Get file extension
-    const fileName = fileInfo.file_name || 'Terabox File';
-    const fileExt = fileName.split('.').pop()?.toLowerCase() || 'mp4';
+    const downloadLink = downloadResponse.data.downloadLink;
+    console.log('✅ SUCCESS! Got download link');
+    
+    const fileSize = file.size || 0;
+    const sizeMB = (fileSize / (1024 * 1024)).toFixed(2);
     
     return {
-      title: fileName,
-      thumbnail: fileInfo.thumbnail || 'https://via.placeholder.com/640x360',
+      title: file.server_filename || 'Terabox File',
+      thumbnail: file.thumbs?.url3 || file.thumbs?.url2 || 'https://via.placeholder.com/640x360',
       duration: '0:00',
       qualities: [
         {
           quality: 'Original',
-          format: fileExt,
-          size: sizeMB,
-          url: fileInfo.download_url,
+          format: file.server_filename?.split('.').pop()?.toLowerCase() || 'mp4',
+          size: `${sizeMB} MB`,
+          url: downloadLink,
           hasAudio: true,
           hasVideo: true,
-          needsProxy: false // TeraDL provides direct download links
+          needsProxy: false
         }
       ],
       audioFormats: [],
       platform: 'terabox',
-      extractionMethod: 'teradl-api'
+      extractionMethod: 'hnn-workers-api'
     };
     
   } catch (error) {
-    console.error('❌ TeraDL extraction failed:', error.message);
+    console.error('❌ HNN Workers API extraction failed:', error.message);
     
     if (error.response) {
       console.error('Response status:', error.response.status);
