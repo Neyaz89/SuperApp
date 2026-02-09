@@ -131,9 +131,25 @@ async function extractWithYtDlp(url) {
       return await extractYouTubeRobust(url);
     }
     
-    // For Terabox, redirect to third-party downloader website
+    // For Terabox, try TeraDL API first, then fallback to WebView
     if (platform === 'terabox') {
-      console.log('🔵 Terabox detected - redirecting to PlayTerabox.com');
+      console.log('🔵 Terabox detected - trying TeraDL API first...');
+      
+      try {
+        const { extractWithTeraDL } = require('../extractors/teradl-extractor');
+        const result = await extractWithTeraDL(url);
+        
+        if (result && result.qualities && result.qualities.length > 0) {
+          console.log('✅ TeraDL API SUCCESS - returning direct download link');
+          return result;
+        }
+      } catch (teraDLError) {
+        console.log('❌ TeraDL API failed:', teraDLError.message);
+        console.log('⚠️ Falling back to WebView extraction...');
+      }
+      
+      // Fallback to WebView if TeraDL fails
+      console.log('🔵 Using WebView extraction as fallback');
       return {
         title: 'Terabox File',
         thumbnail: 'https://via.placeholder.com/640x360',
