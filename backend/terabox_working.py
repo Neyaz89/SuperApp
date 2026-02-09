@@ -6,6 +6,14 @@ Working Terabox Extractor using terabox-downloader package
 import sys
 import json
 import re
+import os
+
+# Suppress all warnings and debug output
+import warnings
+warnings.filterwarnings('ignore')
+
+# Redirect stderr to devnull to suppress package debug messages
+sys.stderr = open(os.devnull, 'w')
 
 try:
     from TeraboxDL import TeraboxDL
@@ -13,7 +21,7 @@ except ImportError:
     print(json.dumps({
         "success": False,
         "error": "terabox-downloader package not installed. Run: pip install terabox-downloader"
-    }))
+    }), flush=True)
     sys.exit(1)
 
 def extract_cookies_from_file(cookie_file):
@@ -103,10 +111,11 @@ if __name__ == "__main__":
             cookie_file = sys.argv[2]
             result = extract_terabox(url, cookie_file)
         
-        print(json.dumps(result))
+        # Print only JSON, flush immediately
+        print(json.dumps(result), flush=True)
         
     except Exception as e:
         print(json.dumps({
             "success": False,
             "error": f"Script error: {str(e)}"
-        }))
+        }), flush=True)

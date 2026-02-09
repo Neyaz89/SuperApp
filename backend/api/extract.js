@@ -131,21 +131,43 @@ async function extractWithYtDlp(url) {
       return await extractYouTubeRobust(url);
     }
     
-    // For Terabox, use Python script with cookies
+    // For Terabox, try multiple extraction methods
     if (platform === 'terabox') {
-      console.log('🔵 Terabox detected - using Python script with cookies');
+      console.log('🔵 Terabox detected - trying multiple extraction methods');
       
       const fs = require('fs');
       const cookieFile = '/app/cookies/terabox_cookies.txt';
       
-      // Check if cookies exist
+      // Method 1: Try Python extractor with cookies
       if (fs.existsSync(cookieFile)) {
-        console.log('✓ Terabox cookies found - using Python extractor');
-        return await extractTeraboxWithYtDlp(url);
+        try {
+          console.log('✓ Terabox cookies found - trying Python extractor');
+          return await extractTeraboxWithYtDlp(url);
+        } catch (e) {
+          console.log('❌ Python extractor failed:', e.message);
+        }
       } else {
-        console.log('❌ Terabox cookies not found');
-        throw new Error('Terabox requires authentication cookies');
+        console.log('⚠️ Terabox cookies not found at:', cookieFile);
       }
+      
+      // Method 2: Try third-party APIs
+      try {
+        console.log('⏳ Trying Terabox third-party APIs...');
+        return await extractTeraboxThirdParty(url);
+      } catch (e) {
+        console.log('❌ Third-party APIs failed:', e.message);
+      }
+      
+      // Method 3: Try direct Terabox extraction
+      try {
+        console.log('⏳ Trying direct Terabox extraction...');
+        return await extractTerabox(url);
+      } catch (e) {
+        console.log('❌ Direct extraction failed:', e.message);
+      }
+      
+      // All Terabox methods failed - throw error to trigger general fallbacks
+      throw new Error('All Terabox extraction methods failed');
     }
     
     // For non-YouTube sites, use standard extraction with fallback
@@ -418,7 +440,7 @@ async function extractTeraboxWithYtDlp(url) {
   
   try {
     const pythonScript = '/app/terabox_working.py';
-    const command = `python3 ${pythonScript} "${url}" "${cookieFile}"`;
+    const command = `python3 ${pythonScript} "${url}" "${cookieFile}" 2>/dev/null`;
     
     console.log('Running terabox-downloader package...');
     
@@ -427,12 +449,21 @@ async function extractTeraboxWithYtDlp(url) {
       maxBuffer: 10 * 1024 * 1024
     });
 
-    if (stderr && stderr.includes('ERROR')) {
-      console.error('Python error:', stderr);
-      throw new Error(stderr);
+    // Ignore stderr since we redirected it
+    // Only parse stdout which should be pure JSON
+    
+    if (!stdout || stdout.trim().length === 0) {
+      throw new Error('No output from Python script');
     }
 
-    const result = JSON.parse(stdout);
+    // Try to extract JSON from stdout (in case there's extra text)
+    let jsonStr = stdout.trim();
+    const jsonMatch = stdout.match(/\{[\s\S]*\}/);
+    if (jsonMatch) {
+      jsonStr = jsonMatch[0];
+    }
+
+    const result = JSON.parse(jsonStr);
     
     if (!result.success) {
       throw new Error(result.error || 'Extraction failed');
