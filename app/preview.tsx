@@ -15,11 +15,13 @@ import { useTheme } from '@/contexts/ThemeContext';
 import { useDownload } from '@/contexts/DownloadContext';
 import { PlatformIcon } from '@/components/PlatformIcon';
 import { LinearGradient } from '@/components/LinearGradient';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function PreviewScreen() {
   const router = useRouter();
   const { theme, isDark } = useTheme();
   const { mediaInfo } = useDownload();
+  const insets = useSafeAreaInsets();
 
   if (!mediaInfo) {
     router.replace('/');
@@ -28,10 +30,17 @@ export default function PreviewScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
-      <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
+      <StatusBar 
+        barStyle={isDark ? 'light-content' : 'dark-content'} 
+        translucent
+        backgroundColor="transparent"
+      />
       
       {/* Header with gradient */}
-      <View style={[styles.header, { backgroundColor: theme.card }]}>
+      <View style={[styles.header, { 
+        backgroundColor: theme.card,
+        paddingTop: insets.top + 20
+      }]}>
         <TouchableOpacity onPress={() => router.back()} style={[styles.backButton, { backgroundColor: theme.primary + '15' }]}>
           <Ionicons name="arrow-back" size={24} color={theme.primary} />
         </TouchableOpacity>
@@ -50,7 +59,7 @@ export default function PreviewScreen() {
             />
             <View style={styles.playOverlay}>
               <View style={styles.playButton}>
-                <Ionicons name="play" size={28} color="#FF6B6B" style={{ marginLeft: 4 }} />
+                <Ionicons name="play" size={28} color="#8B5CF6" style={{ marginLeft: 4 }} />
               </View>
             </View>
             <View style={styles.durationBadge}>
@@ -79,11 +88,11 @@ export default function PreviewScreen() {
 
         {/* Stats cards */}
         <View style={styles.statsContainer}>
-          <View style={[styles.statCard, { backgroundColor: '#FF6B6B15' }]}>
+          <View style={[styles.statCard, { backgroundColor: '#A78BFA20' }]}>
             <View style={styles.statIconContainer}>
-              <Ionicons name="videocam" size={28} color="#FF6B6B" />
+              <Ionicons name="videocam" size={28} color="#8B5CF6" />
             </View>
-            <Text style={[styles.statValue, { color: '#FF6B6B' }]}>
+            <Text style={[styles.statValue, { color: '#8B5CF6' }]}>
               {mediaInfo.qualities.length}
             </Text>
             <Text style={[styles.statLabel, { color: theme.textSecondary }]}>
@@ -91,11 +100,11 @@ export default function PreviewScreen() {
             </Text>
           </View>
 
-          <View style={[styles.statCard, { backgroundColor: '#4ECDC415' }]}>
+          <View style={[styles.statCard, { backgroundColor: '#60A5FA20' }]}>
             <View style={styles.statIconContainer}>
-              <Ionicons name="musical-notes" size={28} color="#4ECDC4" />
+              <Ionicons name="musical-notes" size={28} color="#3B82F6" />
             </View>
-            <Text style={[styles.statValue, { color: '#4ECDC4' }]}>
+            <Text style={[styles.statValue, { color: '#3B82F6' }]}>
               {mediaInfo.audioFormats.length}
             </Text>
             <Text style={[styles.statLabel, { color: theme.textSecondary }]}>
@@ -103,11 +112,11 @@ export default function PreviewScreen() {
             </Text>
           </View>
 
-          <View style={[styles.statCard, { backgroundColor: '#FFE66D15' }]}>
+          <View style={[styles.statCard, { backgroundColor: '#F472B620' }]}>
             <View style={styles.statIconContainer}>
-              <Ionicons name="time" size={28} color="#FFB800" />
+              <Ionicons name="time" size={28} color="#EC4899" />
             </View>
-            <Text style={[styles.statValue, { color: '#FFB800' }]}>
+            <Text style={[styles.statValue, { color: '#EC4899' }]}>
               {mediaInfo.duration}
             </Text>
             <Text style={[styles.statLabel, { color: theme.textSecondary }]}>
@@ -117,19 +126,19 @@ export default function PreviewScreen() {
         </View>
 
         {/* Action buttons */}
-        <View style={styles.actionsContainer}>
+        <View style={[styles.actionsContainer, { paddingBottom: Math.max(insets.bottom, 20) }]}>
           <TouchableOpacity
             style={styles.primaryButton}
             onPress={() => router.push('/quality')}
             activeOpacity={0.85}
           >
             <LinearGradient
-              colors={isDark ? ['#4ECDC4', '#3AAFA9'] : ['#FF6B6B', '#EE5A6F']}
+              colors={isDark ? ['#C4B5FD', '#A78BFA'] : ['#A78BFA', '#8B5CF6']}
               style={styles.primaryGradient}
             >
               <Text style={styles.primaryButtonText}>Choose Quality</Text>
               <View style={styles.primaryButtonIcon}>
-                <Ionicons name="arrow-forward" size={20} color="#FFFFFF" />
+                <Ionicons name="checkmark" size={20} color="#FFFFFF" />
               </View>
             </LinearGradient>
           </TouchableOpacity>
@@ -158,7 +167,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 20,
-    paddingTop: 60,
     paddingBottom: 20,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
@@ -291,14 +299,13 @@ const styles = StyleSheet.create({
   actionsContainer: {
     paddingHorizontal: 20,
     paddingTop: 32,
-    paddingBottom: 40,
   },
   primaryButton: {
     height: 64,
     borderRadius: 32,
     overflow: 'hidden',
     marginBottom: 12,
-    shadowColor: '#FF6B6B',
+    shadowColor: '#A78BFA',
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.3,
     shadowRadius: 16,

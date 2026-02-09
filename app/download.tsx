@@ -11,14 +11,15 @@ import { useTheme } from '@/contexts/ThemeContext';
 import { useDownload } from '@/contexts/DownloadContext';
 import { LinearGradient } from '@/components/LinearGradient';
 import { adManager } from '@/services/adManager';
-import { downloadAsync } from 'expo-file-system/legacy';
+import { downloadAsync, cacheDirectory, documentDirectory } from 'expo-file-system/legacy';
 import * as MediaLibrary from 'expo-media-library';
-import * as FileSystem from 'expo-file-system';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function DownloadScreen() {
   const router = useRouter();
   const { theme, isDark } = useTheme();
   const { selectedQuality, setDownloadedFile, mediaInfo } = useDownload();
+  const insets = useSafeAreaInsets();
   const [progress, setProgress] = useState(0);
   const [status, setStatus] = useState('Preparing download...');
   const progressAnim = new Animated.Value(0);
@@ -87,7 +88,7 @@ export default function DownloadScreen() {
         return;
       }
 
-      let baseDir = FileSystem.cacheDirectory || FileSystem.documentDirectory;
+      let baseDir = cacheDirectory || documentDirectory;
       
       if (!baseDir) {
         baseDir = 'file:///data/user/0/com.superapp.media/cache/';
@@ -172,7 +173,11 @@ export default function DownloadScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
-      <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
+      <StatusBar 
+        barStyle={isDark ? 'light-content' : 'dark-content'} 
+        translucent
+        backgroundColor="transparent"
+      />
       
       {/* Animated gradient circles */}
       <Animated.View
@@ -194,7 +199,10 @@ export default function DownloadScreen() {
         ]}
       />
       
-      <View style={styles.content}>
+      <View style={[styles.content, { 
+        paddingTop: Math.max(insets.top, 20),
+        paddingBottom: Math.max(insets.bottom, 20)
+      }]}>
         <Animated.View
           style={[
             styles.iconContainer,

@@ -8,15 +8,18 @@ import {
   Alert,
 } from 'react-native';
 import { useRouter } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useDownload } from '@/contexts/DownloadContext';
 import { LinearGradient } from '@/components/LinearGradient';
 import * as Sharing from 'expo-sharing';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function CompleteScreen() {
   const router = useRouter();
   const { theme, isDark } = useTheme();
   const { downloadedFile } = useDownload();
+  const insets = useSafeAreaInsets();
 
   if (!downloadedFile) {
     router.replace('/');
@@ -42,63 +45,31 @@ export default function CompleteScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
-      <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
+      <StatusBar 
+        barStyle={isDark ? 'light-content' : 'dark-content'} 
+        translucent
+        backgroundColor="transparent"
+      />
       
       {/* Animated circles */}
-      <View style={[styles.decorCircle1, { backgroundColor: '#51CF6620' }]} />
-      <View style={[styles.decorCircle2, { backgroundColor: '#4ECDC420' }]} />
+      <View style={[styles.decorCircle1, { backgroundColor: '#6EE7B720' }]} />
+      <View style={[styles.decorCircle2, { backgroundColor: '#60A5FA20' }]} />
       
-      <View style={styles.content}>
+      <View style={[styles.content, { 
+        paddingTop: Math.max(insets.top, 20),
+        paddingBottom: Math.max(insets.bottom, 20)
+      }]}>
         {/* Success animation */}
-        <View style={[styles.successCircle, { backgroundColor: '#51CF6615' }]}>
-          <View style={[styles.successInner, { backgroundColor: '#51CF6630' }]}>
+        <View style={[styles.successCircle, { backgroundColor: '#6EE7B720' }]}>
+          <View style={[styles.successInner, { backgroundColor: '#6EE7B730' }]}>
             <Text style={styles.checkmark}>✓</Text>
           </View>
         </View>
 
-        <Text style={[styles.title, { color: theme.text }]}>Download Complete!</Text>
+        <Text style={[styles.title, { color: theme.text }]}>Complete!</Text>
         <Text style={[styles.subtitle, { color: theme.textSecondary }]}>
-          Your {downloadedFile.type} is ready 🎉
+          Saved to your gallery
         </Text>
-
-        {/* Info cards */}
-        <View style={styles.infoContainer}>
-          <View style={[styles.infoCard, { backgroundColor: '#FF6B6B15' }]}>
-            <View style={styles.infoIconContainer}>
-              <Text style={styles.infoIcon}>🎬</Text>
-            </View>
-            <View style={styles.infoContent}>
-              <Text style={[styles.infoLabel, { color: theme.textSecondary }]}>Quality</Text>
-              <Text style={[styles.infoValue, { color: theme.text }]}>
-                {downloadedFile.quality}
-              </Text>
-            </View>
-          </View>
-
-          <View style={[styles.infoCard, { backgroundColor: '#4ECDC415' }]}>
-            <View style={styles.infoIconContainer}>
-              <Text style={styles.infoIcon}>📦</Text>
-            </View>
-            <View style={styles.infoContent}>
-              <Text style={[styles.infoLabel, { color: theme.textSecondary }]}>Format</Text>
-              <Text style={[styles.infoValue, { color: theme.text }]}>
-                {downloadedFile.format.toUpperCase()}
-              </Text>
-            </View>
-          </View>
-
-          <View style={[styles.infoCard, { backgroundColor: '#FFE66D15' }]}>
-            <View style={styles.infoIconContainer}>
-              <Text style={styles.infoIcon}>📁</Text>
-            </View>
-            <View style={styles.infoContent}>
-              <Text style={[styles.infoLabel, { color: theme.textSecondary }]}>Type</Text>
-              <Text style={[styles.infoValue, { color: theme.text }]}>
-                {downloadedFile.type.charAt(0).toUpperCase() + downloadedFile.type.slice(1)}
-              </Text>
-            </View>
-          </View>
-        </View>
 
         {/* Action buttons */}
         <View style={styles.actions}>
@@ -108,12 +79,10 @@ export default function CompleteScreen() {
             activeOpacity={0.85}
           >
             <LinearGradient
-              colors={['#51CF66', '#45B85A']}
+              colors={['#10B981', '#059669']}
               style={styles.primaryGradient}
             >
-              <View style={styles.primaryButtonIcon}>
-                <Text style={styles.primaryButtonIconText}>📤</Text>
-              </View>
+              <Ionicons name="share-outline" size={24} color="#FFFFFF" />
               <Text style={styles.primaryButtonText}>Share</Text>
             </LinearGradient>
           </TouchableOpacity>
@@ -124,7 +93,7 @@ export default function CompleteScreen() {
             activeOpacity={0.7}
           >
             <Text style={[styles.secondaryButtonText, { color: theme.text }]}>
-              Download Another
+              Process Another
             </Text>
           </TouchableOpacity>
         </View>
@@ -177,7 +146,7 @@ const styles = StyleSheet.create({
   checkmark: {
     fontSize: 56,
     fontWeight: '700',
-    color: '#51CF66',
+    color: '#10B981',
   },
   title: {
     fontSize: 32,
@@ -189,42 +158,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     textAlign: 'center',
-    marginBottom: 40,
-  },
-  infoContainer: {
-    width: '100%',
-    marginBottom: 32,
-  },
-  infoCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 16,
-    borderRadius: 20,
-    marginBottom: 12,
-  },
-  infoIconContainer: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: 'rgba(255,255,255,0.5)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 14,
-  },
-  infoIcon: {
-    fontSize: 24,
-  },
-  infoContent: {
-    flex: 1,
-  },
-  infoLabel: {
-    fontSize: 13,
-    fontWeight: '600',
-    marginBottom: 2,
-  },
-  infoValue: {
-    fontSize: 17,
-    fontWeight: '800',
+    marginBottom: 48,
   },
   actions: {
     width: '100%',
@@ -234,7 +168,7 @@ const styles = StyleSheet.create({
     borderRadius: 32,
     overflow: 'hidden',
     marginBottom: 12,
-    shadowColor: '#51CF66',
+    shadowColor: '#10B981',
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.3,
     shadowRadius: 16,
@@ -246,17 +180,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 12,
-  },
-  primaryButtonIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(255,255,255,0.25)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  primaryButtonIconText: {
-    fontSize: 20,
   },
   primaryButtonText: {
     color: '#FFFFFF',

@@ -12,11 +12,13 @@ import {
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '@/contexts/ThemeContext';
-import * as FileSystem from 'expo-file-system';
+import { cacheDirectory, readDirectoryAsync, deleteAsync } from 'expo-file-system/legacy';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function SettingsScreen() {
   const router = useRouter();
   const { theme, isDark, toggleTheme } = useTheme();
+  const insets = useSafeAreaInsets();
 
   const handleClearCache = async () => {
     Alert.alert(
@@ -29,11 +31,11 @@ export default function SettingsScreen() {
           style: 'destructive',
           onPress: async () => {
             try {
-              const cacheDir = FileSystem.cacheDirectory;
+              const cacheDir = cacheDirectory;
               if (cacheDir) {
-                const files = await FileSystem.readDirectoryAsync(cacheDir);
+                const files = await readDirectoryAsync(cacheDir);
                 await Promise.all(
-                  files.map(file => FileSystem.deleteAsync(`${cacheDir}${file}`, { idempotent: true }))
+                  files.map(file => deleteAsync(`${cacheDir}${file}`, { idempotent: true }))
                 );
               }
               Alert.alert('Success', 'Cache cleared successfully');
@@ -48,10 +50,17 @@ export default function SettingsScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
-      <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
+      <StatusBar 
+        barStyle={isDark ? 'light-content' : 'dark-content'} 
+        translucent
+        backgroundColor="transparent"
+      />
       
       {/* Header */}
-      <View style={[styles.header, { backgroundColor: theme.card }]}>
+      <View style={[styles.header, { 
+        backgroundColor: theme.card,
+        paddingTop: insets.top + 20
+      }]}>
         <TouchableOpacity onPress={() => router.back()} style={[styles.backButton, { backgroundColor: theme.primary + '15' }]}>
           <Ionicons name="arrow-back" size={24} color={theme.primary} />
         </TouchableOpacity>
@@ -65,9 +74,9 @@ export default function SettingsScreen() {
           <View style={styles.profileAvatar}>
             <Ionicons name="person" size={40} color={theme.primary} />
           </View>
-          <Text style={[styles.profileName, { color: theme.text }]}>SuperApp User</Text>
+          <Text style={[styles.profileName, { color: theme.text }]}>SuperHub User</Text>
           <Text style={[styles.profileSubtext, { color: theme.textSecondary }]}>
-            Download from 1000+ sites
+            Your all-in-one media hub
           </Text>
         </View>
 
@@ -78,8 +87,8 @@ export default function SettingsScreen() {
           </Text>
           <View style={[styles.settingCard, { backgroundColor: theme.card }]}>
             <View style={styles.settingLeft}>
-              <View style={[styles.settingIcon, { backgroundColor: '#FFE66D20' }]}>
-                <Ionicons name={isDark ? 'moon' : 'sunny'} size={24} color="#FFB800" />
+              <View style={[styles.settingIcon, { backgroundColor: '#F472B620' }]}>
+                <Ionicons name={isDark ? 'moon' : 'sunny'} size={24} color="#EC4899" />
               </View>
               <View>
                 <Text style={[styles.settingTitle, { color: theme.text }]}>Dark Mode</Text>
@@ -108,8 +117,8 @@ export default function SettingsScreen() {
             activeOpacity={0.7}
           >
             <View style={styles.settingLeft}>
-              <View style={[styles.settingIcon, { backgroundColor: '#FF6B6B20' }]}>
-                <Ionicons name="trash-outline" size={24} color="#FF6B6B" />
+              <View style={[styles.settingIcon, { backgroundColor: '#8B5CF620' }]}>
+                <Ionicons name="trash-outline" size={24} color="#8B5CF6" />
               </View>
               <View>
                 <Text style={[styles.settingTitle, { color: theme.text }]}>Clear Cache</Text>
@@ -130,7 +139,7 @@ export default function SettingsScreen() {
           
           <View style={[styles.settingCard, { backgroundColor: theme.card }]}>
             <View style={styles.settingLeft}>
-              <View style={[styles.settingIcon, { backgroundColor: '#4ECDC420' }]}>
+              <View style={[styles.settingIcon, { backgroundColor: '#60A5FA20' }]}>
                 <Text style={styles.settingEmoji}>ℹ️</Text>
               </View>
               <View>
@@ -148,7 +157,7 @@ export default function SettingsScreen() {
             activeOpacity={0.7}
           >
             <View style={styles.settingLeft}>
-              <View style={[styles.settingIcon, { backgroundColor: '#9B59B620' }]}>
+              <View style={[styles.settingIcon, { backgroundColor: '#C4B5FD20' }]}>
                 <Text style={styles.settingEmoji}>🔒</Text>
               </View>
               <View>
@@ -167,7 +176,7 @@ export default function SettingsScreen() {
             activeOpacity={0.7}
           >
             <View style={styles.settingLeft}>
-              <View style={[styles.settingIcon, { backgroundColor: '#51CF6620' }]}>
+              <View style={[styles.settingIcon, { backgroundColor: '#6EE7B720' }]}>
                 <Text style={styles.settingEmoji}>📄</Text>
               </View>
               <View>
@@ -182,11 +191,11 @@ export default function SettingsScreen() {
         </View>
 
         {/* Footer */}
-        <View style={styles.footer}>
+        <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, 20) }]}>
           <View style={[styles.footerCard, { backgroundColor: theme.card }]}>
             <Text style={styles.footerEmoji}>❤️</Text>
             <Text style={[styles.footerText, { color: theme.text }]}>
-              SuperApp © 2026
+              SuperHub © 2026
             </Text>
             <Text style={[styles.footerSubtext, { color: theme.textSecondary }]}>
               Made with love for creators
@@ -207,7 +216,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 20,
-    paddingTop: 60,
     paddingBottom: 20,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
@@ -248,7 +256,7 @@ const styles = StyleSheet.create({
     width: 80,
     height: 80,
     borderRadius: 40,
-    backgroundColor: '#FF6B6B20',
+    backgroundColor: '#A78BFA25',
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 16,
@@ -319,7 +327,6 @@ const styles = StyleSheet.create({
   },
   footer: {
     paddingHorizontal: 20,
-    paddingBottom: 40,
   },
   footerCard: {
     padding: 24,

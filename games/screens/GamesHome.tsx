@@ -10,6 +10,7 @@ import {
 import { useRouter } from 'expo-router';
 import { useTheme } from '@/contexts/ThemeContext';
 import { BannerAd } from '@/components/BannerAd';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 type Game = {
   id: string;
@@ -35,19 +36,31 @@ const GAMES: Game[] = [
 export default function GamesHome() {
   const router = useRouter();
   const { theme, isDark } = useTheme();
+  const insets = useSafeAreaInsets();
 
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
-      <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
+      <StatusBar 
+        barStyle={isDark ? 'light-content' : 'dark-content'} 
+        translucent
+        backgroundColor="transparent"
+      />
       
-      <View style={[styles.header, { borderBottomColor: theme.border }]}>
+      <View style={[styles.header, { 
+        borderBottomColor: theme.border,
+        paddingTop: insets.top + 20
+      }]}>
         <Text style={[styles.headerTitle, { color: theme.text }]}>Games</Text>
         <Text style={[styles.headerSubtitle, { color: theme.textSecondary }]}>
           Play & Earn Rewards
         </Text>
       </View>
 
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView 
+        style={styles.content} 
+        contentContainerStyle={{ paddingBottom: Math.max(insets.bottom, 20) }}
+        showsVerticalScrollIndicator={false}
+      >
         <View style={styles.grid}>
           {GAMES.map((game) => (
             <TouchableOpacity
@@ -80,7 +93,6 @@ const styles = StyleSheet.create({
   },
   header: {
     paddingHorizontal: 20,
-    paddingTop: 60,
     paddingBottom: 20,
     borderBottomWidth: 1,
   },

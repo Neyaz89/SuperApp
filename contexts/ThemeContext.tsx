@@ -8,6 +8,9 @@ type Theme = {
   text: string;
   textSecondary: string;
   primary: string;
+  secondary: string;
+  accent: string;
+  success: string;
   border: string;
 };
 
@@ -17,22 +20,34 @@ type ThemeContextType = {
   toggleTheme: () => void;
 };
 
+// SuperHub Logo Theme - Extracted from rocket logo colors
+// Purple: #A78BFA, #C4B5FD, #8B5CF6
+// Blue/Cyan: #60A5FA, #93C5FD, #3B82F6
+// Pink/Coral: #F472B6, #FCA5A5, #FB7185
+// Mint: #6EE7B7, #A7F3D0
+
 const lightTheme: Theme = {
-  background: '#FFFFFF',
-  card: '#F8F9FA',
-  text: '#2D2D2D',
-  textSecondary: '#95A5A6',
-  primary: '#FF6B6B',
-  border: '#E8E8E8',
+  background: '#FAF5FF', // Soft purple tint
+  card: '#FFFFFF',
+  text: '#5B21B6', // Deep purple from logo
+  textSecondary: '#9333EA',
+  primary: '#A78BFA', // Main purple from logo
+  secondary: '#60A5FA', // Cyan from logo
+  accent: '#F472B6', // Pink from logo
+  success: '#6EE7B7', // Mint from logo
+  border: '#E9D5FF',
 };
 
 const darkTheme: Theme = {
-  background: '#0F0F1E',
-  card: '#1A1A2E',
-  text: '#FFFFFF',
-  textSecondary: '#95A5A6',
-  primary: '#4ECDC4',
-  border: '#2C2C3E',
+  background: '#1E1B4B', // Deep purple from logo
+  card: '#2E1065',
+  text: '#F3E8FF',
+  textSecondary: '#C4B5FD',
+  primary: '#C4B5FD', // Light purple from logo
+  secondary: '#93C5FD', // Light cyan from logo
+  accent: '#FCA5A5', // Light pink from logo
+  success: '#A7F3D0', // Light mint from logo
+  border: '#5B21B6',
 };
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);

@@ -10,6 +10,9 @@ import {
   KeyboardAvoidingView,
   Platform,
   ActivityIndicator,
+  Image,
+  Dimensions,
+  Keyboard,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import * as Clipboard from 'expo-clipboard';
@@ -18,14 +21,17 @@ import { useTheme } from '@/contexts/ThemeContext';
 import { useDownload } from '@/contexts/DownloadContext';
 import { detectPlatform, validateUrl } from '@/utils/urlParser';
 import { LinearGradient } from '@/components/LinearGradient';
-import { PlatformIcon } from '@/components/PlatformIcon';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { mediaExtractor } from '@/services/mediaExtractor';
+
+const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 export default function HomeScreen() {
   const router = useRouter();
   const { theme, isDark } = useTheme();
   const { setMediaInfo } = useDownload();
+  const insets = useSafeAreaInsets();
   const [url, setUrl] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -34,6 +40,8 @@ export default function HomeScreen() {
   const bounceAnim = React.useRef(new Animated.Value(1)).current;
   const rotateAnim = React.useRef(new Animated.Value(0)).current;
   const pulseAnim = React.useRef(new Animated.Value(1)).current;
+  const shineAnim = React.useRef(new Animated.Value(0)).current;
+  const buttonScaleAnim = React.useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
     Animated.parallel([
@@ -75,6 +83,23 @@ export default function HomeScreen() {
       ])
     ).start();
 
+    // Shine animation for button
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(shineAnim, {
+          toValue: 1,
+          duration: 2000,
+          useNativeDriver: true,
+        }),
+        Animated.timing(shineAnim, {
+          toValue: 0,
+          duration: 100,
+          useNativeDriver: true,
+        }),
+        Animated.delay(1000),
+      ])
+    ).start();
+
     checkClipboard();
   }, []);
 
@@ -100,14 +125,17 @@ export default function HomeScreen() {
   };
 
   const handleAnalyze = async () => {
-    // Bounce animation on button press
+    // Dismiss keyboard
+    Keyboard.dismiss();
+
+    // Button press animation
     Animated.sequence([
-      Animated.timing(bounceAnim, {
-        toValue: 0.95,
+      Animated.timing(buttonScaleAnim, {
+        toValue: 0.92,
         duration: 100,
         useNativeDriver: true,
       }),
-      Animated.spring(bounceAnim, {
+      Animated.spring(buttonScaleAnim, {
         toValue: 1,
         friction: 3,
         tension: 40,
@@ -192,9 +220,35 @@ export default function HomeScreen() {
     outputRange: ['0deg', '360deg'],
   });
 
+  const shineTranslate = shineAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [-300, 300],
+  });
+
+  const shineOpacity = shineAnim.interpolate({
+    inputRange: [0, 0.5, 1],
+    outputRange: [0, 0.8, 0],
+  });
+
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
-      <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
+      <StatusBar 
+        barStyle={isDark ? 'light-content' : 'dark-content'} 
+        translucent
+        backgroundColor="transparent"
+      />
+      
+      {/* Settings button in top right */}
+      <View style={[styles.topBar, { paddingTop: insets.top + 8 }]}>
+        <View style={{ flex: 1 }} />
+        <TouchableOpacity
+          style={[styles.settingsButton, { backgroundColor: theme.card }]}
+          onPress={() => router.push('/settings')}
+          activeOpacity={0.7}
+        >
+          <Ionicons name="settings-outline" size={24} color={theme.primary} />
+        </TouchableOpacity>
+      </View>
       
       {/* Animated gradient circles */}
       <Animated.View
@@ -226,19 +280,28 @@ export default function HomeScreen() {
             {
               opacity: fadeAnim,
               transform: [{ translateY: slideAnim }],
+              paddingBottom: Math.max(insets.bottom, 16),
             },
           ]}
         >
           <View style={styles.header}>
-            <Animated.View style={{ transform: [{ scale: bounceAnim }] }}>
-              <Text style={[styles.logo, { color: theme.primary }]}>
-                SuperApp
-              </Text>
-              <View style={styles.logoUnderline} />
+            <Animated.View style={{ transform: [{ scale: bounceAnim }], alignItems: 'center' }}>
+              <Image 
+                source={require('@/assets/logo.png')} 
+                style={styles.logoImage}
+                resizeMode="contain"
+              />
             </Animated.View>
-            <Text style={[styles.tagline, { color: theme.textSecondary }]}>
-              Download from 1000+ sites 🔥
-            </Text>
+            <View style={styles.taglineContainer}>
+              <Text style={[styles.taglineText, { color: theme.textSecondary }]}>
+                Your all-in-one 
+              </Text>
+              <Text style={[styles.funText, { 
+                color: isDark ? '#C4B5FD' : '#8B5CF6',
+              }]}>
+                {' '}fun hub
+              </Text>
+            </View>
           </View>
 
           <View style={styles.inputContainer}>
@@ -283,35 +346,9 @@ export default function HomeScreen() {
                 <Text style={styles.errorText}>{error}</Text>
               </Animated.View>
             ) : null}
-
-            <View style={styles.platformsContainer}>
-              <Text style={[styles.platformsLabel, { color: theme.textSecondary }]}>
-                1800+ Supported Sites
-              </Text>
-              <View style={styles.platformIcons}>
-                <View style={[styles.platformBadge, { backgroundColor: '#FF000015' }]}>
-                  <PlatformIcon platform="youtube" size={28} />
-                </View>
-                <View style={[styles.platformBadge, { backgroundColor: '#E136B615' }]}>
-                  <PlatformIcon platform="instagram" size={28} />
-                </View>
-                <View style={[styles.platformBadge, { backgroundColor: '#1877F215' }]}>
-                  <PlatformIcon platform="facebook" size={28} />
-                </View>
-                <View style={[styles.platformBadge, { backgroundColor: '#1DA1F215' }]}>
-                  <PlatformIcon platform="twitter" size={28} />
-                </View>
-                <View style={[styles.platformBadge, { backgroundColor: '#00ADEF15' }]}>
-                  <PlatformIcon platform="vimeo" size={28} />
-                </View>
-                <View style={[styles.platformBadge, { backgroundColor: '#00000015' }]}>
-                  <Text style={{ fontSize: 20, fontWeight: '800' }}>+1795</Text>
-                </View>
-              </View>
-            </View>
           </View>
 
-          <Animated.View style={{ transform: [{ scale: bounceAnim }] }}>
+          <Animated.View style={{ transform: [{ scale: buttonScaleAnim }] }}>
             <TouchableOpacity
               style={[
                 styles.analyzeButton,
@@ -322,7 +359,7 @@ export default function HomeScreen() {
               activeOpacity={0.85}
             >
               <LinearGradient
-                colors={isDark ? ['#4ECDC4', '#3AAFA9'] : ['#FF6B6B', '#EE5A6F']}
+                colors={isDark ? ['#7C3AED', '#6D28D9', '#5B21B6'] : ['#7C3AED', '#6D28D9', '#5B21B6']}
                 style={styles.analyzeGradient}
               >
                 {loading ? (
@@ -332,10 +369,19 @@ export default function HomeScreen() {
                   </View>
                 ) : (
                   <>
-                    <Text style={styles.analyzeButtonText}>Analyze</Text>
-                    <View style={styles.analyzeIcon}>
-                      <Ionicons name="rocket" size={20} color="#FFFFFF" />
-                    </View>
+                    <Ionicons name="search-outline" size={24} color="#FFFFFF" />
+                    <Text style={styles.analyzeButtonText}>Search for Fun</Text>
+                    
+                    {/* Shine effect overlay */}
+                    <Animated.View
+                      style={[
+                        styles.shineOverlay,
+                        {
+                          opacity: shineOpacity,
+                          transform: [{ translateX: shineTranslate }, { rotate: '25deg' }],
+                        },
+                      ]}
+                    />
                   </>
                 )}
               </LinearGradient>
@@ -344,25 +390,36 @@ export default function HomeScreen() {
 
           <View style={styles.bottomButtons}>
             <TouchableOpacity
-              style={[styles.secondaryButton, { backgroundColor: isDark ? '#1A1A2E' : '#F8F9FA' }]}
+              style={[styles.gamesCard, { backgroundColor: isDark ? '#2E1065' : '#FFFFFF' }]}
               onPress={() => router.push('/games')}
-              activeOpacity={0.7}
+              activeOpacity={0.85}
             >
-              <View style={[styles.secondaryButtonIcon, { backgroundColor: '#4ECDC420' }]}>
-                <Ionicons name="game-controller" size={20} color="#4ECDC4" />
+              <View style={styles.gamesCardHeader}>
+                <View style={styles.gamesIconWrapper}>
+                  <LinearGradient
+                    colors={['#60A5FA', '#3B82F6']}
+                    style={styles.gamesIconGradient}
+                  >
+                    <Ionicons name="game-controller" size={36} color="#FFFFFF" />
+                  </LinearGradient>
+                </View>
+                <View style={styles.gamesArrowWrapper}>
+                  <Ionicons name="arrow-forward" size={24} color={theme.primary} />
+                </View>
               </View>
-              <Text style={[styles.secondaryButtonText, { color: theme.text }]}>Games</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[styles.secondaryButton, { backgroundColor: isDark ? '#1A1A2E' : '#F8F9FA' }]}
-              onPress={() => router.push('/settings')}
-              activeOpacity={0.7}
-            >
-              <View style={[styles.secondaryButtonIcon, { backgroundColor: '#FFE66D20' }]}>
-                <Ionicons name="settings" size={20} color="#FFB800" />
+              <View style={styles.gamesCardBody}>
+                <Text style={[styles.gamesTitle, { color: theme.text }]}>
+                  Play Games
+                </Text>
+                <Text style={[styles.gamesSubtitle, { color: theme.textSecondary }]}>
+                  10+ fun games • Have fun
+                </Text>
               </View>
-              <Text style={[styles.secondaryButtonText, { color: theme.text }]}>Settings</Text>
+              <View style={[styles.gamesCardFooter, { backgroundColor: isDark ? '#3B82F620' : '#60A5FA10' }]}>
+                <Text style={[styles.gamesFooterText, { color: theme.primary }]}>
+                  Tap to explore games
+                </Text>
+              </View>
             </TouchableOpacity>
           </View>
         </Animated.View>
@@ -375,12 +432,35 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
+  topBar: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingBottom: 8,
+    zIndex: 10,
+  },
+  settingsButton: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 3,
+  },
   decorCircle1: {
     position: 'absolute',
     width: 250,
     height: 250,
     borderRadius: 125,
-    backgroundColor: '#FF6B6B15',
+    backgroundColor: '#C4B5FD20', // Light purple from logo
     top: -100,
     right: -80,
   },
@@ -389,7 +469,7 @@ const styles = StyleSheet.create({
     width: 180,
     height: 180,
     borderRadius: 90,
-    backgroundColor: '#4ECDC415',
+    backgroundColor: '#93C5FD20', // Cyan from logo
     bottom: 150,
     left: -90,
   },
@@ -398,7 +478,7 @@ const styles = StyleSheet.create({
     width: 120,
     height: 120,
     borderRadius: 60,
-    backgroundColor: '#FFE66D15',
+    backgroundColor: '#FCA5A520', // Pink from logo
     top: 200,
     left: 30,
   },
@@ -408,34 +488,47 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
     paddingHorizontal: 24,
-    paddingTop: 70,
-    paddingBottom: 40,
+    paddingTop: 20,
+    justifyContent: 'flex-start',
+    marginTop: 37.5,
   },
   header: {
     alignItems: 'center',
-    marginBottom: 40,
+    marginBottom: 0,
   },
-  logo: {
-    fontSize: 42,
-    fontWeight: '900',
-    letterSpacing: -1,
-    marginBottom: 8,
+  logoImage: {
+    width: SCREEN_HEIGHT > 700 ? 240 : 180,
+    height: SCREEN_HEIGHT > 700 ? 240 : 180,
+    marginBottom: 0,
+    marginTop: 0,
   },
-  logoUnderline: {
-    width: 60,
-    height: 4,
-    backgroundColor: '#FF6B6B',
-    borderRadius: 2,
-    alignSelf: 'center',
+  taglineContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexWrap: 'wrap',
+    marginTop: 0,
+    marginBottom: SCREEN_HEIGHT > 700 ? 16 : 12,
+  },
+  taglineText: {
+    fontSize: SCREEN_HEIGHT > 700 ? 17 : 15,
+    fontWeight: '500',
+    letterSpacing: 0.3,
+  },
+  funText: {
+    fontSize: SCREEN_HEIGHT > 700 ? 17 : 15,
+    fontWeight: '800',
+    letterSpacing: 0.5,
   },
   tagline: {
-    fontSize: 16,
+    fontSize: SCREEN_HEIGHT > 700 ? 16 : 14,
     fontWeight: '600',
     textAlign: 'center',
-    marginTop: 12,
+    marginTop: 0,
+    marginBottom: SCREEN_HEIGHT > 700 ? 16 : 12,
   },
   inputContainer: {
-    marginBottom: 24,
+    marginBottom: SCREEN_HEIGHT > 700 ? 24 : 16,
   },
   inputWrapper: {
     flexDirection: 'row',
@@ -444,7 +537,7 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     paddingHorizontal: 6,
     paddingVertical: 6,
-    height: 68,
+    height: SCREEN_HEIGHT > 700 ? 68 : 60,
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.12,
     shadowRadius: 16,
@@ -454,7 +547,7 @@ const styles = StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: 28,
-    backgroundColor: '#FF6B6B10',
+    backgroundColor: '#A78BFA20',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -470,7 +563,7 @@ const styles = StyleSheet.create({
     borderRadius: 28,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#FF6B6B',
+    shadowColor: '#A78BFA',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
@@ -514,22 +607,34 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   analyzeButton: {
-    height: 68,
-    borderRadius: 34,
+    height: SCREEN_HEIGHT > 700 ? 72 : 64,
+    borderRadius: SCREEN_HEIGHT > 700 ? 36 : 32,
     overflow: 'hidden',
-    shadowColor: '#FF6B6B',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.35,
-    shadowRadius: 20,
-    elevation: 10,
-    marginBottom: 20,
+    shadowColor: '#5B21B6',
+    shadowOffset: { width: 0, height: 16 },
+    shadowOpacity: 0.7,
+    shadowRadius: 32,
+    elevation: 16,
+    marginBottom: SCREEN_HEIGHT > 700 ? 20 : 12,
   },
   analyzeGradient: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 12,
+    gap: 14,
+    paddingHorizontal: 32,
+    position: 'relative',
+    overflow: 'hidden',
+  },
+  shineOverlay: {
+    position: 'absolute',
+    top: -50,
+    left: -50,
+    right: -50,
+    bottom: -50,
+    width: 100,
+    backgroundColor: 'rgba(255, 255, 255, 0.4)',
   },
   analyzeButtonDisabled: {
     opacity: 0.6,
@@ -544,26 +649,85 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     letterSpacing: 0.5,
   },
-  analyzeIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
   bottomButtons: {
     flexDirection: 'row',
     gap: 12,
   },
-  secondaryButton: {
-    flex: 1,
-    height: 64,
-    borderRadius: 32,
+  gamesCard: {
+    width: '100%',
+    borderRadius: 28,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.12,
+    shadowRadius: 20,
+    elevation: 8,
+  },
+  gamesCardHeader: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 20,
+    paddingBottom: 16,
+  },
+  gamesIconWrapper: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    overflow: 'hidden',
+    shadowColor: '#3B82F6',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  gamesIconGradient: {
+    width: '100%',
+    height: '100%',
+    alignItems: 'center',
     justifyContent: 'center',
-    gap: 10,
+  },
+  gamesArrowWrapper: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(96, 165, 250, 0.1)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  gamesCardBody: {
+    paddingHorizontal: 20,
+    paddingBottom: 16,
+  },
+  gamesTitle: {
+    fontSize: 24,
+    fontWeight: '900',
+    marginBottom: 6,
+    letterSpacing: 0.3,
+  },
+  gamesSubtitle: {
+    fontSize: 15,
+    fontWeight: '600',
+    lineHeight: 20,
+  },
+  gamesCardFooter: {
+    paddingHorizontal: 20,
+    paddingVertical: 14,
+    alignItems: 'center',
+  },
+  gamesFooterText: {
+    fontSize: 14,
+    fontWeight: '700',
+    letterSpacing: 0.5,
+  },
+  secondaryButton: {
+    flex: 1,
+    height: 104,
+    borderRadius: 24,
+    flexDirection: 'column',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.08,
@@ -571,14 +735,14 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   secondaryButtonIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
     alignItems: 'center',
     justifyContent: 'center',
   },
   secondaryButtonText: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '700',
   },
 });

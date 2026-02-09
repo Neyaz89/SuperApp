@@ -13,6 +13,7 @@ import { useTheme } from '@/contexts/ThemeContext';
 import { useDownload } from '@/contexts/DownloadContext';
 import { LinearGradient } from '@/components/LinearGradient';
 import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 type MediaType = 'video' | 'audio';
 
@@ -20,10 +21,13 @@ export default function QualityScreen() {
   const router = useRouter();
   const { theme, isDark } = useTheme();
   const { mediaInfo, setSelectedQuality } = useDownload();
+  const insets = useSafeAreaInsets();
   const [mediaType, setMediaType] = useState<MediaType>('video');
   const [selectedIndex, setSelectedIndex] = useState(0);
   const scaleAnim = new Animated.Value(0);
   const bounceAnim = new Animated.Value(1);
+  const buttonScaleAnim = new Animated.Value(1);
+  const shineAnim = new Animated.Value(0);
 
   useEffect(() => {
     // Log what we received
@@ -45,6 +49,23 @@ export default function QualityScreen() {
       friction: 7,
       useNativeDriver: true,
     }).start();
+
+    // Shine animation for button
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(shineAnim, {
+          toValue: 1,
+          duration: 2500,
+          useNativeDriver: true,
+        }),
+        Animated.timing(shineAnim, {
+          toValue: 0,
+          duration: 100,
+          useNativeDriver: true,
+        }),
+        Animated.delay(1500),
+      ])
+    ).start();
   }, []);
 
   useEffect(() => {
@@ -71,10 +92,14 @@ export default function QualityScreen() {
 
   if (!currentOptions || currentOptions.length === 0) {
     return (
-      <LinearGradient colors={['#FF6B9D', '#C44569', '#8B2E5F']} style={styles.container}>
-        <StatusBar barStyle="light-content" />
+      <LinearGradient colors={['#8B5CF6', '#A78BFA', '#C4B5FD']} style={styles.container}>
+        <StatusBar 
+          barStyle="light-content" 
+          translucent
+          backgroundColor="transparent"
+        />
         
-        <View style={styles.header}>
+        <View style={[styles.header, { paddingTop: insets.top + 20 }]}>
           <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
             <Ionicons name="arrow-back" size={28} color="#FFF" />
           </TouchableOpacity>
@@ -110,6 +135,21 @@ export default function QualityScreen() {
     const selected = currentOptions[safeSelectedIndex];
     if (!selected) return;
     
+    // Button press animation
+    Animated.sequence([
+      Animated.timing(buttonScaleAnim, {
+        toValue: 0.92,
+        duration: 100,
+        useNativeDriver: true,
+      }),
+      Animated.spring(buttonScaleAnim, {
+        toValue: 1,
+        friction: 3,
+        tension: 40,
+        useNativeDriver: true,
+      }),
+    ]).start();
+
     setSelectedQuality({
       ...selected,
       type: mediaType,
@@ -117,11 +157,25 @@ export default function QualityScreen() {
     router.push('/download');
   };
 
+  const shineTranslate = shineAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [-300, 300],
+  });
+
+  const shineOpacity = shineAnim.interpolate({
+    inputRange: [0, 0.5, 1],
+    outputRange: [0, 0.6, 0],
+  });
+
   return (
-    <LinearGradient colors={['#FF6B9D', '#C44569', '#8B2E5F']} style={styles.container}>
-      <StatusBar barStyle="light-content" />
+    <LinearGradient colors={['#8B5CF6', '#A78BFA', '#C4B5FD']} style={styles.container}>
+      <StatusBar 
+        barStyle="light-content" 
+        translucent
+        backgroundColor="transparent"
+      />
       
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingTop: insets.top + 20 }]}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
           <Ionicons name="arrow-back" size={28} color="#FFF" />
         </TouchableOpacity>
@@ -212,7 +266,7 @@ export default function QualityScreen() {
                     <Text style={styles.sizeText}>📦 {option.size}</Text>
                   </View>
                   {selectedIndex === index && (
-                    <Ionicons name="checkmark-circle" size={32} color="#FFD93D" />
+                    <Ionicons name="checkmark-circle" size={32} color="#3B82F6" />
                   )}
                 </View>
               </TouchableOpacity>
@@ -220,18 +274,30 @@ export default function QualityScreen() {
           ))}
         </ScrollView>
 
-        <TouchableOpacity
-          style={styles.downloadButton}
-          onPress={handleDownload}
-          activeOpacity={0.8}
-        >
-          <LinearGradient colors={['#FFD93D', '#FFA500', '#FF6B35']} style={styles.downloadGradient}>
-            <Ionicons name="download" size={28} color="#FFF" />
-            <Text style={styles.downloadButtonText}>
-              🚀 Download {currentOptions[safeSelectedIndex]?.quality || 'Now'}!
-            </Text>
-          </LinearGradient>
-        </TouchableOpacity>
+        <Animated.View style={{ transform: [{ scale: buttonScaleAnim }] }}>
+          <TouchableOpacity
+            style={[styles.downloadButton, { marginBottom: Math.max(insets.bottom + 8, 20) }]}
+            onPress={handleDownload}
+            activeOpacity={0.85}
+          >
+            <View style={styles.downloadButtonInner}>
+              <View style={styles.downloadIconCircle}>
+                <Ionicons name="download" size={32} color="#8B5CF6" />
+              </View>
+              
+              <View style={styles.downloadContent}>
+                <Text style={styles.downloadTitle}>Save to Gallery</Text>
+                <Text style={styles.downloadSubtitle}>
+                  {currentOptions[safeSelectedIndex]?.quality} • {currentOptions[safeSelectedIndex]?.format.toUpperCase()}
+                </Text>
+              </View>
+              
+              <View style={styles.downloadCheckCircle}>
+                <Ionicons name="arrow-forward" size={24} color="#8B5CF6" />
+              </View>
+            </View>
+          </TouchableOpacity>
+        </Animated.View>
       </View>
     </LinearGradient>
   );
@@ -246,7 +312,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 20,
-    paddingTop: 60,
     paddingBottom: 20,
   },
   backButton: {
@@ -286,7 +351,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   toggleButtonActive: {
-    backgroundColor: '#FFD93D',
+    backgroundColor: '#60A5FA',
   },
   toggleEmoji: {
     fontSize: 20,
@@ -333,7 +398,7 @@ const styles = StyleSheet.create({
     elevation: 5,
   },
   optionCardSelected: {
-    backgroundColor: '#FFD93D',
+    backgroundColor: '#C4B5FD',
     transform: [{ scale: 1.02 }],
   },
   optionLeft: {
@@ -346,7 +411,7 @@ const styles = StyleSheet.create({
     width: 50,
     height: 50,
     borderRadius: 25,
-    backgroundColor: '#FF6B9D',
+    backgroundColor: '#8B5CF6',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -383,29 +448,53 @@ const styles = StyleSheet.create({
     color: '#2C3E50',
   },
   downloadButton: {
-    margin: 20,
-    borderRadius: 30,
-    overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.3,
-    shadowRadius: 10,
-    elevation: 8,
+    marginHorizontal: 20,
+    marginTop: 8,
+    borderRadius: 24,
+    backgroundColor: '#FFFFFF',
+    shadowColor: '#8B5CF6',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.4,
+    shadowRadius: 20,
+    elevation: 12,
   },
-  downloadGradient: {
+  downloadButtonInner: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 18,
-    gap: 12,
+    paddingVertical: 20,
+    paddingHorizontal: 24,
+    gap: 16,
   },
-  downloadButtonText: {
-    color: '#FFF',
-    fontSize: 20,
+  downloadIconCircle: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: '#F3E8FF',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  downloadContent: {
+    flex: 1,
+  },
+  downloadTitle: {
+    fontSize: 19,
     fontWeight: '900',
-    textShadowColor: 'rgba(0,0,0,0.3)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 2,
+    color: '#1F2937',
+    marginBottom: 4,
+    letterSpacing: 0.3,
+  },
+  downloadSubtitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#6B7280',
+  },
+  downloadCheckCircle: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: '#F3E8FF',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   emptyContainer: {
     flex: 1,
@@ -428,7 +517,7 @@ const styles = StyleSheet.create({
     textShadowRadius: 2,
   },
   switchEmptyButton: {
-    backgroundColor: '#FFD93D',
+    backgroundColor: '#60A5FA',
     paddingHorizontal: 32,
     paddingVertical: 16,
     borderRadius: 25,

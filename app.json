@@ -1,25 +1,30 @@
 {
   "expo": {
-    "name": "SuperApp",
-    "slug": "superapp",
+    "name": "SuperHub",
+    "slug": "superhub",
     "version": "1.0.0",
     "orientation": "portrait",
+    "icon": "./assets/logo.png",
     "userInterfaceStyle": "automatic",
-    "scheme": "superapp",
+    "scheme": "superhub",
     "splash": {
+      "image": "./assets/logo.png",
       "resizeMode": "contain",
-      "backgroundColor": "#000000"
+      "backgroundColor": "#A78BFA"
     },
     "assetBundlePatterns": [
       "**/*"
     ],
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.superapp.media"
+      "bundleIdentifier": "com.superhub.media",
+      "icon": "./assets/logo.png"
     },
     "android": {
+      "icon": "./assets/logo.png",
       "adaptiveIcon": {
-        "backgroundColor": "#000000"
+        "foregroundImage": "./assets/logo.png",
+        "backgroundColor": "#A78BFA"
       },
       "permissions": [
         "android.permission.INTERNET",
@@ -30,7 +35,7 @@
         "android.permission.READ_MEDIA_VISUAL_USER_SELECTED",
         "android.permission.READ_MEDIA_IMAGES"
       ],
-      "package": "com.superapp.media"
+      "package": "com.superhub.media"
     },
     "plugins": [
       "expo-router",
@@ -38,8 +43,8 @@
       [
         "expo-media-library",
         {
-          "photosPermission": "Allow SuperApp to save downloaded media.",
-          "savePhotosPermission": "Allow SuperApp to save media to your gallery."
+          "photosPermission": "Allow SuperHub to save downloaded media.",
+          "savePhotosPermission": "Allow SuperHub to save media to your gallery."
         }
       ]
     ],
