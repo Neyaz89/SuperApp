@@ -166,8 +166,18 @@ async function extractWithYtDlp(url) {
         console.log('❌ Direct extraction failed:', e.message);
       }
       
-      // All Terabox methods failed - throw error to trigger general fallbacks
-      throw new Error('All Terabox extraction methods failed');
+      // Method 4: Return WebView instruction as fallback
+      console.log('⚠️ All server-side methods failed - instructing client to use WebView');
+      return {
+        title: 'Terabox File',
+        thumbnail: 'https://via.placeholder.com/640x360',
+        duration: '0:00',
+        qualities: [],
+        audioFormats: [],
+        platform: 'terabox',
+        useWebView: true,
+        webViewUrl: url
+      };
     }
     
     // For non-YouTube sites, use standard extraction with fallback
