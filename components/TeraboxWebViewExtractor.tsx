@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { View, StyleSheet, ActivityIndicator, Text, Linking } from 'react-native';
+import React, { useState, useRef } from 'react';
+import { View, StyleSheet, ActivityIndicator, Text } from 'react-native';
 import { WebView } from 'react-native-webview';
 
 interface TeraboxWebViewExtractorProps {
@@ -18,53 +18,156 @@ export default function TeraboxWebViewExtractor({
   onExtractSuccess,
   onExtractError,
 }: TeraboxWebViewExtractorProps) {
+  const webViewRef = useRef<WebView>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [loadProgress, setLoadProgress] = useState(0);
+  const [extractionStatus, setExtractionStatus] = useState('Loading downloader...');
   
   // Use working Terabox downloader website
   const downloaderUrl = `https://playterabox.com/?url=${encodeURIComponent(url)}`;
 
-  const handleLoadStart = () => {
-    setIsLoading(true);
-    setLoadProgress(0);
+  // JavaScript to inject - automatically extracts download link
+  const injectedJavaScript = `
+    (function() {
+      console.log('🔵 Starting automatic Terabox extraction...');
+      
+      let checkAttempts = 0;
+      const maxAttempts = 30; // 30 seconds max
+      
+      function findDownloadLink() {
+        checkAttempts++;
+        console.log('🔍 Attempt ' + checkAttempts + '/' + maxAttempts);
+        
+        // Method 1: Look for download button/link
+        const downloadButtons = document.querySelectorAll('a[href*="download"], button[onclick*="download"], a[download]');
+        for (let btn of downloadButtons) {
+          const href = btn.getAttribute('href') || btn.getAttribute('data-url');
+          if (href && (href.includes('.mp4') || href.includes('terabox') || href.includes('dlink'))) {
+            console.log('✅ Found download link via button:', href);
+            sendResult(href, btn.textContent || 'Terabox Video');
+            return true;
+          }
+        }
+        
+        // Method 2: Look for video element
+        const videos = document.querySelectorAll('video');
+        if (videos.length > 0) {
+          const videoSrc = videos[0].src || videos[0].querySelector('source')?.src;
+          if (videoSrc && videoSrc.startsWith('http')) {
+            console.log('✅ Found video element:', videoSrc);
+            sendResult(videoSrc, 'Terabox Video');
+            return true;
+          }
+        }
+        
+        // Method 3: Look for direct links in page
+        const links = document.querySelectorAll('a[href]');
+        for (let link of links) {
+          const href = link.href;
+          if (href && (href.includes('.mp4') || href.includes('.mkv') || href.includes('dlink'))) {
+            console.log('✅ Found direct video link:', href);
+            sendResult(href, link.textContent || 'Terabox Video');
+            return true;
+          }
+        }
+        
+        // Method 4: Check for data in page scripts/JSON
+        const scripts = document.querySelectorAll('script');
+        for (let script of scripts) {
+          const content = script.textContent || '';
+          // Look for download URLs in JavaScript
+          const urlMatch = content.match(/(https?:\\/\\/[^"'\\s]+\\.(mp4|mkv|avi|mov))/i);
+          if (urlMatch) {
+            console.log('✅ Found URL in script:', urlMatch[1]);
+            sendResult(urlMatch[1], 'Terabox Video');
+            return true;
+          }
+        }
+        
+        // Method 5: Look for download info in window object
+        if (typeof window.downloadUrl !== 'undefined' && window.downloadUrl) {
+          console.log('✅ Found window.downloadUrl:', window.downloadUrl);
+          sendResult(window.downloadUrl, 'Terabox Video');
+          return true;
+        }
+        
+        return false;
+      }
+      
+      function sendResult(downloadUrl, title) {
+        window.ReactNativeWebView.postMessage(JSON.stringify({
+          success: true,
+          title: title || 'Terabox Video',
+          downloadUrl: downloadUrl,
+          size: 0,
+          thumbnail: ''
+        }));
+      }
+      
+      function sendError(message) {
+        window.ReactNativeWebView.postMessage(JSON.stringify({
+          success: false,
+          error: message
+        }));
+      }
+      
+      // Start checking after page loads
+      setTimeout(() => {
+        const interval = setInterval(() => {
+          if (findDownloadLink()) {
+            clearInterval(interval);
+            return;
+          }
+          
+          if (checkAttempts >= maxAttempts) {
+            clearInterval(interval);
+            console.log('❌ Extraction timeout - no download link found');
+            sendError('Could not find download link. Please try again.');
+          }
+        }, 1000); // Check every second
+      }, 2000); // Wait 2 seconds for page to load
+      
+    })();
+    true;
+  `;
+
+  const handleMessage = (event: any) => {
+    try {
+      const data = JSON.parse(event.nativeEvent.data);
+      console.log('📦 Received from WebView:', data);
+      
+      if (data.success && data.downloadUrl) {
+        console.log('✅ Extraction successful!');
+        setIsLoading(false);
+        onExtractSuccess({
+          title: data.title,
+          downloadUrl: data.downloadUrl,
+          size: data.size,
+          thumbnail: data.thumbnail,
+        });
+      } else if (data.error) {
+        console.log('❌ Extraction failed:', data.error);
+        setIsLoading(false);
+        onExtractError(data.error);
+      }
+    } catch (error) {
+      console.error('Error parsing message:', error);
+      setIsLoading(false);
+      onExtractError('Failed to extract download link');
+    }
   };
 
-  const handleLoadProgress = ({ nativeEvent }: any) => {
-    setLoadProgress(nativeEvent.progress);
+  const handleLoadStart = () => {
+    setIsLoading(true);
+    setExtractionStatus('Loading downloader...');
   };
 
   const handleLoadEnd = () => {
-    // Hide loading after a short delay to ensure page is fully rendered
-    setTimeout(() => {
-      setIsLoading(false);
-    }, 500);
+    setExtractionStatus('Extracting download link...');
   };
 
   const handleError = () => {
     setIsLoading(false);
-  };
-
-  // Handle file downloads - open in external browser
-  const handleShouldStartLoadWithRequest = (request: any) => {
-    const { url: requestUrl } = request;
-    
-    // If it's a download link (video file), open in external browser
-    if (
-      requestUrl.includes('.mp4') ||
-      requestUrl.includes('.mkv') ||
-      requestUrl.includes('.avi') ||
-      requestUrl.includes('download') ||
-      requestUrl.includes('dlink')
-    ) {
-      console.log('🔗 Opening download in external browser:', requestUrl);
-      // Open in external browser for download
-      const { Linking } = require('react-native');
-      Linking.openURL(requestUrl);
-      return false; // Don't load in WebView
-    }
-    
-    // Allow normal navigation
-    return true;
+    onExtractError('Failed to load downloader website');
   };
 
   return (
@@ -73,43 +176,26 @@ export default function TeraboxWebViewExtractor({
       {isLoading && (
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color="#FF6B6B" />
-          <Text style={styles.loadingText}>Loading Terabox downloader...</Text>
-          <Text style={styles.progressText}>{Math.round(loadProgress * 100)}%</Text>
+          <Text style={styles.loadingText}>{extractionStatus}</Text>
+          <Text style={styles.subText}>This may take a few seconds...</Text>
         </View>
       )}
       
-      {/* Header Info */}
-      <View style={styles.headerContainer}>
-        <Text style={styles.headerText}>Terabox Downloader</Text>
-        <Text style={styles.subHeaderText}>Powered by PlayTerabox.com</Text>
-      </View>
-      
-      {/* WebView */}
+      {/* WebView - Hidden from user */}
       <WebView
+        ref={webViewRef}
         source={{ uri: downloaderUrl }}
         style={styles.webview}
         javaScriptEnabled={true}
         domStorageEnabled={true}
-        startInLoadingState={false}
+        injectedJavaScript={injectedJavaScript}
+        onMessage={handleMessage}
         onLoadStart={handleLoadStart}
-        onLoadProgress={handleLoadProgress}
         onLoadEnd={handleLoadEnd}
         onError={handleError}
-        onShouldStartLoadWithRequest={handleShouldStartLoadWithRequest}
-        cacheEnabled={true}
-        incognito={false}
-        allowsInlineMediaPlayback={true}
-        mediaPlaybackRequiresUserAction={false}
-        // Performance optimizations
-        androidLayerType="hardware"
-        androidHardwareAccelerationDisabled={false}
-        // Allow file downloads - CRITICAL
-        allowFileAccess={true}
-        allowFileAccessFromFileURLs={true}
-        allowUniversalAccessFromFileURLs={true}
-        // Download handling
-        setSupportMultipleWindows={false}
-        javaScriptCanOpenWindowsAutomatically={true}
+        cacheEnabled={false}
+        incognito={true}
+        userAgent="Mozilla/5.0 (Linux; Android 10; SM-G973F) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36"
       />
     </View>
   );
@@ -120,25 +206,9 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#000',
   },
-  headerContainer: {
-    padding: 16,
-    backgroundColor: '#1a1a1a',
-    borderBottomWidth: 1,
-    borderBottomColor: '#333',
-  },
-  headerText: {
-    color: '#FFF',
-    fontSize: 18,
-    fontWeight: '600',
-    marginBottom: 4,
-  },
-  subHeaderText: {
-    color: '#999',
-    fontSize: 12,
-  },
   webview: {
     flex: 1,
-    backgroundColor: '#000',
+    opacity: 0, // Hide WebView - user only sees loading screen
   },
   loadingContainer: {
     position: 'absolute',
@@ -148,19 +218,18 @@ const styles = StyleSheet.create({
     bottom: 0,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.9)',
+    backgroundColor: '#000',
     zIndex: 1000,
   },
   loadingText: {
     color: '#FFF',
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: '600',
     marginTop: 16,
   },
-  progressText: {
-    color: '#FF6B6B',
-    fontSize: 24,
-    fontWeight: '700',
+  subText: {
+    color: '#999',
+    fontSize: 14,
     marginTop: 8,
   },
 });
