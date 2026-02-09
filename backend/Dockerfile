@@ -30,9 +30,10 @@ RUN npm install --production
 # Copy application files
 COPY . .
 
-# Copy cookies files for authentication
+# Create cookies directory and copy authentication files
+RUN mkdir -p /app/cookies
 COPY cookies.txt /app/cookies.txt
-COPY terabox_cookies.txt /app/terabox_cookies.txt
+COPY cookies/terabox_cookies.txt /app/cookies/terabox_cookies.txt
 
 # Make Python scripts executable
 RUN chmod +x /app/ytdlp_extract.py /app/terabox_extract.py
