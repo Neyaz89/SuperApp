@@ -11,8 +11,11 @@ RUN apk add --no-cache \
     freetype \
     harfbuzz \
     ca-certificates \
-    ttf-freefont \
-    && pip3 install --break-system-packages --no-cache-dir --upgrade yt-dlp
+    ttf-freefont
+
+# Copy requirements and install Python packages
+COPY requirements.txt /tmp/requirements.txt
+RUN pip3 install --break-system-packages --no-cache-dir -r /tmp/requirements.txt
 
 # Tell Puppeteer to use installed Chromium
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true \
