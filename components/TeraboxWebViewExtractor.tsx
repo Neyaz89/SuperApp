@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, StyleSheet, ActivityIndicator, Text } from 'react-native';
+import { View, StyleSheet, ActivityIndicator, Text, Linking } from 'react-native';
 import { WebView } from 'react-native-webview';
 
 interface TeraboxWebViewExtractorProps {
@@ -44,6 +44,29 @@ export default function TeraboxWebViewExtractor({
     setIsLoading(false);
   };
 
+  // Handle file downloads - open in external browser
+  const handleShouldStartLoadWithRequest = (request: any) => {
+    const { url: requestUrl } = request;
+    
+    // If it's a download link (video file), open in external browser
+    if (
+      requestUrl.includes('.mp4') ||
+      requestUrl.includes('.mkv') ||
+      requestUrl.includes('.avi') ||
+      requestUrl.includes('download') ||
+      requestUrl.includes('dlink')
+    ) {
+      console.log('🔗 Opening download in external browser:', requestUrl);
+      // Open in external browser for download
+      const { Linking } = require('react-native');
+      Linking.openURL(requestUrl);
+      return false; // Don't load in WebView
+    }
+    
+    // Allow normal navigation
+    return true;
+  };
+
   return (
     <View style={styles.container}>
       {/* Loading Overlay */}
@@ -72,6 +95,7 @@ export default function TeraboxWebViewExtractor({
         onLoadProgress={handleLoadProgress}
         onLoadEnd={handleLoadEnd}
         onError={handleError}
+        onShouldStartLoadWithRequest={handleShouldStartLoadWithRequest}
         cacheEnabled={true}
         incognito={false}
         allowsInlineMediaPlayback={true}
@@ -79,10 +103,13 @@ export default function TeraboxWebViewExtractor({
         // Performance optimizations
         androidLayerType="hardware"
         androidHardwareAccelerationDisabled={false}
-        // Allow file downloads
+        // Allow file downloads - CRITICAL
         allowFileAccess={true}
         allowFileAccessFromFileURLs={true}
         allowUniversalAccessFromFileURLs={true}
+        // Download handling
+        setSupportMultipleWindows={false}
+        javaScriptCanOpenWindowsAutomatically={true}
       />
     </View>
   );
