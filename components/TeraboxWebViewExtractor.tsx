@@ -21,8 +21,8 @@ export default function TeraboxWebViewExtractor({
   const [isLoading, setIsLoading] = useState(true);
   const [loadProgress, setLoadProgress] = useState(0);
   
-  // Build the third-party downloader URL with the Terabox link
-  const downloaderUrl = `https://terabox-downloader.online/?url=${encodeURIComponent(url)}`;
+  // Use working Terabox downloader website
+  const downloaderUrl = `https://playterabox.com/?url=${encodeURIComponent(url)}`;
 
   const handleLoadStart = () => {
     setIsLoading(true);
@@ -58,7 +58,7 @@ export default function TeraboxWebViewExtractor({
       {/* Header Info */}
       <View style={styles.headerContainer}>
         <Text style={styles.headerText}>Terabox Downloader</Text>
-        <Text style={styles.subHeaderText}>Powered by terabox-downloader.online</Text>
+        <Text style={styles.subHeaderText}>Powered by PlayTerabox.com</Text>
       </View>
       
       {/* WebView */}

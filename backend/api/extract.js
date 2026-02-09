@@ -133,7 +133,7 @@ async function extractWithYtDlp(url) {
     
     // For Terabox, redirect to third-party downloader website
     if (platform === 'terabox') {
-      console.log('🔵 Terabox detected - redirecting to third-party downloader');
+      console.log('🔵 Terabox detected - redirecting to PlayTerabox.com');
       return {
         title: 'Terabox File',
         thumbnail: 'https://via.placeholder.com/640x360',
@@ -142,7 +142,7 @@ async function extractWithYtDlp(url) {
         audioFormats: [],
         platform: 'terabox',
         useWebView: true,
-        webViewUrl: `https://terabox-downloader.online/?url=${encodeURIComponent(url)}`
+        webViewUrl: url
       };
     }
     
