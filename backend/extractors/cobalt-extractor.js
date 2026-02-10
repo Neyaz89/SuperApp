@@ -43,7 +43,8 @@ async function extractWithCobalt(url) {
           videoQuality: '1080',
           audioFormat: 'mp3',
           filenameStyle: 'basic',
-          downloadMode: 'auto'
+          downloadMode: 'auto',
+          disableMetadata: true  // Remove watermarks from TikTok, Snapchat, etc.
         }),
         timeout: 15000
       });
