@@ -95,11 +95,24 @@ export default function DownloadScreen() {
       }
 
       setStatus('Starting download...');
-      setProgress(5);
-      const filename = `SuperApp_${Date.now()}.${selectedQuality.format}`;
+      setProgress(1);
+      const filename = `SuperHub_${Date.now()}.${selectedQuality.format}`;
       const fileUri = baseDir + filename;
 
       setStatus('Downloading...');
+
+      // Simulate realistic progress during download
+      const progressInterval = setInterval(() => {
+        setProgress((prev) => {
+          if (prev >= 90) {
+            clearInterval(progressInterval);
+            return prev;
+          }
+          // Gradually increase progress
+          const increment = Math.random() * 5 + 2; // Random increment between 2-7%
+          return Math.min(prev + increment, 90);
+        });
+      }, 500);
 
       // Check if URL needs proxy (for adult sites)
       const needsProxy = (selectedQuality as any).needsProxy || false;
@@ -119,6 +132,8 @@ export default function DownloadScreen() {
         downloadUrl,
         fileUri
       );
+
+      clearInterval(progressInterval);
 
       if (downloadResult.status !== 200) {
         throw new Error(`Download failed with status ${downloadResult.status}`);
@@ -245,16 +260,17 @@ export default function DownloadScreen() {
           </View>
         </View>
 
-        <View style={[styles.statusCard, { backgroundColor: theme.card }]}>
+        <View style={styles.statusCard}>
           <View style={styles.statusIconContainer}>
             <Text style={styles.statusIcon}>
-              {progress < 30 ? '🚀' : progress < 70 ? '⚡' : progress < 100 ? '✨' : '🎉'}
+              {progress < 25 ? '🚀' : progress < 50 ? '⚡' : progress < 75 ? '✨' : progress < 100 ? '🎯' : '🎉'}
             </Text>
           </View>
           <Text style={[styles.statusText, { color: theme.textSecondary }]}>
-            {progress < 30 ? 'Starting download...' : 
-             progress < 70 ? 'Downloading at full speed...' : 
-             progress < 100 ? 'Almost there...' : 
+            {progress < 25 ? 'Initializing download...' : 
+             progress < 50 ? 'Downloading at full speed...' : 
+             progress < 75 ? 'More than halfway there...' :
+             progress < 100 ? 'Almost done...' : 
              'Complete!'}
           </Text>
         </View>
@@ -367,6 +383,7 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     borderRadius: 24,
     gap: 12,
+    backgroundColor: 'rgba(139, 92, 246, 0.1)',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.08,

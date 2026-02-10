@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, StatusBar, Alert } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useDownload } from '@/contexts/DownloadContext';
 import TeraboxWebViewExtractor from '@/components/TeraboxWebViewExtractor';
+import { adManager } from '@/services/adManager';
 
 export default function TeraboxExtractScreen() {
   const router = useRouter();
@@ -13,6 +14,14 @@ export default function TeraboxExtractScreen() {
   const params = useLocalSearchParams();
   const url = params.url as string;
   const [isExtracting, setIsExtracting] = useState(true);
+
+  useEffect(() => {
+    // Show interstitial ad when screen loads
+    const showAd = async () => {
+      await adManager.showInterstitial();
+    };
+    showAd();
+  }, []);
 
   const handleExtractSuccess = (data: {
     title: string;

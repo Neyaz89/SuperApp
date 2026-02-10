@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "SuperHub",
-    "slug": "superhub",
+    "slug": "superapp",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/logo.png",
@@ -46,6 +46,18 @@
           "photosPermission": "Allow SuperHub to save downloaded media.",
           "savePhotosPermission": "Allow SuperHub to save media to your gallery."
         }
+      ],
+      [
+        "react-native-google-mobile-ads",
+        {
+          "androidAppId": "ca-app-pub-4846583305979583~7315110438"
+        }
+      ],
+      [
+        "react-native-compressor",
+        {
+          "enableBackgroundMode": true
+        }
       ]
     ],
     "sdkVersion": "54.0.0",
@@ -54,6 +66,7 @@
       "eas": {
         "projectId": "ec4e9340-3d51-4c13-b7a8-6a87eaeeb60b"
       }
-    }
+    },
+    "owner": "neyaz12"
   }
 }

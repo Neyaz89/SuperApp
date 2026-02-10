@@ -90,6 +90,29 @@ export default function QualityScreen() {
 
   const currentOptions = mediaType === 'video' ? mediaInfo.qualities : mediaInfo.audioFormats;
 
+  const getSizeLabel = (size: string): { label: string; color: string } => {
+    // Parse size string to get MB value
+    const sizeMatch = size.match(/(\d+\.?\d*)\s*(MB|GB)/i);
+    if (!sizeMatch) return { label: 'Unknown', color: '#6B7280' };
+    
+    const value = parseFloat(sizeMatch[1]);
+    const unit = sizeMatch[2].toUpperCase();
+    const sizeInMB = unit === 'GB' ? value * 1024 : value;
+    
+    if (sizeInMB < 100) {
+      return { label: 'Small', color: '#10B981' }; // Green
+    } else if (sizeInMB < 300) {
+      return { label: 'Medium', color: '#F59E0B' }; // Orange
+    } else {
+      return { label: 'Large', color: '#EF4444' }; // Red
+    }
+  };
+
+  const isRecommended = (quality: string): boolean => {
+    // Recommend 480p and 720p as balanced options
+    return quality.includes('480') || quality.includes('720');
+  };
+
   if (!currentOptions || currentOptions.length === 0) {
     return (
       <LinearGradient colors={['#8B5CF6', '#A78BFA', '#C4B5FD']} style={styles.container}>
@@ -228,50 +251,69 @@ export default function QualityScreen() {
             Pick your vibe! 🔥
           </Text>
 
-          {currentOptions.map((option, index) => (
-            <Animated.View
-              key={index}
-              style={{
-                transform: [{ scale: selectedIndex === index ? bounceAnim : 1 }],
-              }}
-            >
-              <TouchableOpacity
-                style={[
-                  styles.optionCard,
-                  selectedIndex === index && styles.optionCardSelected,
-                ]}
-                onPress={() => setSelectedIndex(index)}
-                activeOpacity={0.7}
+          {currentOptions.map((option, index) => {
+            const sizeInfo = getSizeLabel(option.size);
+            const recommended = isRecommended(option.quality);
+            
+            return (
+              <Animated.View
+                key={index}
+                style={{
+                  transform: [{ scale: selectedIndex === index ? bounceAnim : 1 }],
+                }}
               >
-                <View style={styles.optionLeft}>
-                  <View style={[
-                    styles.qualityBadge,
-                    selectedIndex === index && styles.qualityBadgeSelected,
-                  ]}>
-                    <Text style={styles.qualityEmoji}>
-                      {option.quality.includes('1080') ? '🌟' : 
-                       option.quality.includes('720') ? '⭐' : 
-                       option.quality.includes('480') ? '✨' : '💫'}
-                    </Text>
-                  </View>
-                  <View>
-                    <Text style={styles.qualityText}>{option.quality}</Text>
-                    <Text style={styles.formatText}>
-                      {option.format.toUpperCase()}
-                    </Text>
-                  </View>
-                </View>
-                <View style={styles.optionRight}>
-                  <View style={styles.sizeBadge}>
-                    <Text style={styles.sizeText}>📦 {option.size}</Text>
-                  </View>
-                  {selectedIndex === index && (
-                    <Ionicons name="checkmark-circle" size={32} color="#3B82F6" />
+                <TouchableOpacity
+                  style={[
+                    styles.optionCard,
+                    selectedIndex === index && styles.optionCardSelected,
+                  ]}
+                  onPress={() => setSelectedIndex(index)}
+                  activeOpacity={0.7}
+                >
+                  {recommended && (
+                    <View style={styles.recommendedBadge}>
+                      <Text style={styles.recommendedText}>⭐ Recommended</Text>
+                    </View>
                   )}
-                </View>
-              </TouchableOpacity>
-            </Animated.View>
-          ))}
+                  
+                  <View style={styles.optionLeft}>
+                    <View style={[
+                      styles.qualityBadge,
+                      selectedIndex === index && styles.qualityBadgeSelected,
+                    ]}>
+                      <Text style={styles.qualityEmoji}>
+                        {option.quality.includes('1080') ? '🌟' : 
+                         option.quality.includes('720') ? '⭐' : 
+                         option.quality.includes('480') ? '✨' : '💫'}
+                      </Text>
+                    </View>
+                    <View>
+                      <Text style={styles.qualityText}>{option.quality}</Text>
+                      <Text style={styles.formatText}>
+                        {option.format.toUpperCase()}
+                      </Text>
+                    </View>
+                  </View>
+                  
+                  <View style={styles.optionRight}>
+                    <View style={styles.sizeInfoContainer}>
+                      <View style={[styles.sizeLabelBadge, { backgroundColor: sizeInfo.color + '20' }]}>
+                        <Text style={[styles.sizeLabelText, { color: sizeInfo.color }]}>
+                          {sizeInfo.label}
+                        </Text>
+                      </View>
+                      <View style={styles.sizeBadge}>
+                        <Text style={styles.sizeText}>📦 {option.size}</Text>
+                      </View>
+                    </View>
+                    {selectedIndex === index && (
+                      <Ionicons name="checkmark-circle" size={32} color="#3B82F6" />
+                    )}
+                  </View>
+                </TouchableOpacity>
+              </Animated.View>
+            );
+          })}
         </ScrollView>
 
         <Animated.View style={{ transform: [{ scale: buttonScaleAnim }] }}>
@@ -396,10 +438,32 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.2,
     shadowRadius: 8,
     elevation: 5,
+    position: 'relative',
   },
   optionCardSelected: {
     backgroundColor: '#C4B5FD',
     transform: [{ scale: 1.02 }],
+  },
+  recommendedBadge: {
+    position: 'absolute',
+    top: -8,
+    right: 12,
+    backgroundColor: '#F59E0B',
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: 12,
+    shadowColor: '#F59E0B',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 3,
+    zIndex: 1,
+  },
+  recommendedText: {
+    color: '#FFFFFF',
+    fontSize: 11,
+    fontWeight: '900',
+    letterSpacing: 0.5,
   },
   optionLeft: {
     flexDirection: 'row',
@@ -435,6 +499,20 @@ const styles = StyleSheet.create({
   optionRight: {
     alignItems: 'flex-end',
     gap: 8,
+  },
+  sizeInfoContainer: {
+    alignItems: 'flex-end',
+    gap: 6,
+  },
+  sizeLabelBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  sizeLabelText: {
+    fontSize: 12,
+    fontWeight: '900',
+    letterSpacing: 0.5,
   },
   sizeBadge: {
     paddingHorizontal: 12,

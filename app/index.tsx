@@ -22,6 +22,7 @@ import { useDownload } from '@/contexts/DownloadContext';
 import { detectPlatform, validateUrl } from '@/utils/urlParser';
 import { LinearGradient } from '@/components/LinearGradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { adManager } from '@/services/adManager';
 
 import { mediaExtractor } from '@/services/mediaExtractor';
 
@@ -34,6 +35,7 @@ export default function HomeScreen() {
   const insets = useSafeAreaInsets();
   const [url, setUrl] = useState('');
   const [loading, setLoading] = useState(false);
+  const [loadingMessage, setLoadingMessage] = useState('');
   const [error, setError] = useState('');
   const fadeAnim = React.useRef(new Animated.Value(0)).current;
   const slideAnim = React.useRef(new Animated.Value(50)).current;
@@ -160,18 +162,36 @@ export default function HomeScreen() {
         return;
       }
 
+      // Show rewarded ad and extract media in parallel for best UX
+      setLoadingMessage('Preparing...');
       setLoading(true);
-      setError('');
 
       console.log('Starting extraction for:', url);
       
-      // Fetch real media info (including Terabox via server-side APIs)
-      const mediaData = await mediaExtractor.extractMediaInfo(url, platform);
+      // Run ad and extraction simultaneously
+      const [adResult, mediaData] = await Promise.all([
+        // Show rewarded ad
+        (async () => {
+          setLoadingMessage('Loading ad...');
+          await adManager.showRewarded();
+          return true;
+        })(),
+        // Extract media info in background while ad plays
+        (async () => {
+          await new Promise(resolve => setTimeout(resolve, 500)); // Small delay
+          setLoadingMessage('Analyzing in background...');
+          const data = await mediaExtractor.extractMediaInfo(url, platform);
+          return data;
+        })()
+      ]);
+
+      setLoadingMessage('Processing results...');
       
       // Check if WebView extraction is needed (for Terabox)
       if (mediaData.useWebView && mediaData.webViewUrl) {
         console.log('WebView extraction required - navigating to Terabox WebView screen');
         setLoading(false);
+        setLoadingMessage('');
         router.push({
           pathname: '/terabox-extract',
           params: { url: mediaData.webViewUrl }
@@ -193,9 +213,14 @@ export default function HomeScreen() {
         audioFormats: mediaData.audioFormats,
       });
 
+      setLoadingMessage('Success! Redirecting...');
       console.log('MediaInfo stored in context - navigating to preview');
-      setLoading(false);
-      router.push('/preview');
+      
+      setTimeout(() => {
+        setLoading(false);
+        setLoadingMessage('');
+        router.push('/preview');
+      }, 500);
     } catch (err: any) {
       console.error('Error in handleAnalyze:', err);
       let errorMessage = 'Failed to analyze media. ';
@@ -212,6 +237,7 @@ export default function HomeScreen() {
       
       setError(errorMessage);
       setLoading(false);
+      setLoadingMessage('');
     }
   };
 
@@ -365,7 +391,7 @@ export default function HomeScreen() {
                 {loading ? (
                   <View style={styles.loadingContainer}>
                     <ActivityIndicator color="#FFFFFF" size="small" />
-                    <Text style={styles.analyzeButtonText}>  Analyzing...</Text>
+                    <Text style={styles.analyzeButtonText}>  {loadingMessage || 'Analyzing...'}</Text>
                   </View>
                 ) : (
                   <>

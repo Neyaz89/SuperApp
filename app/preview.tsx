@@ -16,6 +16,7 @@ import { useDownload } from '@/contexts/DownloadContext';
 import { PlatformIcon } from '@/components/PlatformIcon';
 import { LinearGradient } from '@/components/LinearGradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { BannerAd } from '@/components/BannerAd';
 
 export default function PreviewScreen() {
   const router = useRouter();
@@ -123,6 +124,14 @@ export default function PreviewScreen() {
               Duration
             </Text>
           </View>
+        </View>
+
+        {/* Banner Ad */}
+        <View style={styles.adContainer}>
+          <BannerAd 
+            size="mediumRectangle" 
+            adUnitId="ca-app-pub-4846583305979583/5794145204"
+          />
         </View>
 
         {/* Action buttons */}
@@ -295,6 +304,10 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '600',
     textAlign: 'center',
+  },
+  adContainer: {
+    paddingHorizontal: 20,
+    paddingTop: 24,
   },
   actionsContainer: {
     paddingHorizontal: 20,
