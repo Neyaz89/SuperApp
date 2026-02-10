@@ -1,1 +1,41 @@
+# Backend (deployed separately to Render)
 backend/
+
+# Documentation (not needed in app)
+docs/
+*.md
+!README.md
+
+# Test files
+test-*
+*.test.js
+*.test.ts
+__tests__/
+
+# Scripts
+*.bat
+*.ps1
+*.sh
+
+# Development files
+.vscode/
+.kiro/
+.git/
+.expo/
+.github/
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Temporary files
+*.tmp
+*.temp
+.cache/
