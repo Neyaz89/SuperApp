@@ -34,8 +34,8 @@ const EXTRACTORS = {
     { name: 'Cobalt', priority: 2, fn: extractWithCobalt }
   ],
   snapchat: [
-    { name: 'yt-dlp', priority: 1, fn: extractWithYtDlp },
-    { name: 'Cobalt', priority: 2, fn: extractWithCobalt }
+    { name: 'Cobalt', priority: 1, fn: extractWithCobalt },  // Cobalt removes watermarks
+    { name: 'yt-dlp', priority: 2, fn: extractWithYtDlp }
   ],
   default: [
     { name: 'yt-dlp', priority: 1, fn: extractWithYtDlp },
