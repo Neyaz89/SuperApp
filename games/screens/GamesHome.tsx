@@ -21,17 +21,21 @@ type Game = {
 };
 
 const GAMES: Game[] = [
-  { id: '1', name: 'Tap Reflex', icon: '⚡', tagline: 'Test your reaction speed', route: '/games/tap-reflex' },
-  { id: '2', name: 'Endless Runner', icon: '🏃', tagline: 'Run and dodge obstacles', route: '/games/endless-runner' },
-  { id: '3', name: '2048', icon: '🎯', tagline: 'Classic puzzle game', route: '/games/game-2048' },
-  { id: '4', name: 'Memory Match', icon: '🧠', tagline: 'Find matching pairs', route: '/games/memory-match' },
-  { id: '5', name: 'Snake', icon: '🐍', tagline: 'Classic snake game', route: '/games/snake' },
-  { id: '6', name: 'Tic Tac Toe', icon: '⭕', tagline: 'Beat the AI', route: '/games/tic-tac-toe' },
-  { id: '7', name: 'Bubble Shooter', icon: '🎈', tagline: 'Pop matching bubbles', route: '/games/bubble-shooter' },
-  { id: '8', name: 'Quiz Master', icon: '❓', tagline: 'Test your knowledge', route: '/games/quiz' },
-  { id: '9', name: 'Color Switch', icon: '🎨', tagline: 'Match the colors fast', route: '/games/color-switch' },
-  { id: '10', name: 'Stack Blocks', icon: '📦', tagline: 'Perfect timing game', route: '/games/stack-blocks' },
+  { id: '3', name: '2048', icon: '🎯', tagline: 'Classic puzzle game', route: 'games/game-2048' },
+  { id: '4', name: 'Memory Match', icon: '🧠', tagline: 'Find matching pairs', route: 'games/memory-match' },
+  { id: '5', name: 'Snake', icon: '🐍', tagline: 'Classic snake game', route: 'games/snake' },
+  { id: '6', name: 'Tic Tac Toe', icon: '⭕', tagline: 'Beat the AI', route: 'games/tic-tac-toe' },
+  { id: '8', name: 'Quiz Master', icon: '❓', tagline: 'Test your knowledge', route: 'games/quiz' },
+  { id: '10', name: 'Stack Blocks', icon: '📦', tagline: 'Perfect timing game', route: 'games/stack-blocks' },
 ];
+
+const HTML5_FEATURED = {
+  id: 'html5',
+  name: 'HTML5 Games',
+  icon: '🎮',
+  tagline: '24 Premium Ad-Free Games',
+  route: 'games/html5-browser' as const,
+};
 
 export default function GamesHome() {
   const router = useRouter();
@@ -61,6 +65,29 @@ export default function GamesHome() {
         contentContainerStyle={{ paddingBottom: Math.max(insets.bottom, 20) }}
         showsVerticalScrollIndicator={false}
       >
+        {/* HTML5 Games Featured Card */}
+        <TouchableOpacity
+          style={[styles.featuredCard, { backgroundColor: theme.primary }]}
+          onPress={() => router.push(HTML5_FEATURED.route as any)}
+          activeOpacity={0.8}
+        >
+          <View style={styles.featuredContent}>
+            <Text style={styles.featuredIcon}>{HTML5_FEATURED.icon}</Text>
+            <View style={styles.featuredText}>
+              <Text style={styles.featuredName}>{HTML5_FEATURED.name}</Text>
+              <Text style={styles.featuredTagline}>{HTML5_FEATURED.tagline}</Text>
+            </View>
+          </View>
+          <View style={styles.featuredBadge}>
+            <Text style={styles.featuredBadgeText}>NEW</Text>
+          </View>
+        </TouchableOpacity>
+
+        {/* Built-in Games Section */}
+        <View style={styles.sectionHeader}>
+          <Text style={[styles.sectionTitle, { color: theme.text }]}>Built-in Games</Text>
+        </View>
+
         <View style={styles.grid}>
           {GAMES.map((game) => (
             <TouchableOpacity
@@ -107,6 +134,63 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
+  },
+  featuredCard: {
+    margin: 16,
+    padding: 20,
+    borderRadius: 20,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  featuredContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  featuredIcon: {
+    fontSize: 56,
+    marginRight: 16,
+  },
+  featuredText: {
+    flex: 1,
+  },
+  featuredName: {
+    fontSize: 22,
+    fontWeight: '900',
+    color: '#FFFFFF',
+    marginBottom: 4,
+  },
+  featuredTagline: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#FFFFFF',
+    opacity: 0.9,
+  },
+  featuredBadge: {
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 12,
+  },
+  featuredBadgeText: {
+    fontSize: 12,
+    fontWeight: '900',
+    color: '#8B5CF6',
+  },
+  sectionHeader: {
+    paddingHorizontal: 20,
+    paddingTop: 8,
+    paddingBottom: 12,
+  },
+  sectionTitle: {
+    fontSize: 20,
+    fontWeight: '800',
   },
   grid: {
     flexDirection: 'row',

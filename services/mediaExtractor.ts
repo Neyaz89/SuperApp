@@ -83,9 +83,51 @@ export class MediaExtractor {
 
         // Validate response
         if (!data.qualities || data.qualities.length === 0) {
-          console.warn('⚠️ No qualities in response, using fallback');
-          return this.createMockData(url, platform);
+          console.warn('⚠️ No qualities in response');
+          
+          if (attempt < 3) {
+            console.log('Retrying...');
+            await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
+            continue;
+          }
+          
+          throw new Error('No video qualities found. The video might be private, unavailable, or the link is invalid.');
         }
+
+        // Validate that URLs are actual video URLs (not images/labels)
+        const validQualities = data.qualities.filter((q: any) => {
+          const url = q.url?.toLowerCase() || '';
+          // Filter out common non-video URLs
+          const isInvalidUrl = 
+            url.includes('rta-label') ||
+            url.includes('logo') ||
+            url.includes('banner') ||
+            url.includes('placeholder') ||
+            url.endsWith('.jpg') ||
+            url.endsWith('.jpeg') ||
+            url.endsWith('.png') ||
+            url.endsWith('.gif') ||
+            url.endsWith('.svg') ||
+            url.includes('/images/') ||
+            url.includes('/static/images/');
+          
+          return !isInvalidUrl;
+        });
+
+        if (validQualities.length === 0) {
+          console.warn('⚠️ All URLs appear to be invalid (images/labels)');
+          
+          if (attempt < 3) {
+            console.log('Retrying with different method...');
+            await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
+            continue;
+          }
+          
+          throw new Error('Could not extract valid video URL. This site may require special handling.');
+        }
+
+        // Replace qualities with validated ones
+        data.qualities = validQualities;
 
         console.log('=== Extraction successful - Returning to app ===');
         return data;
@@ -98,8 +140,8 @@ export class MediaExtractor {
         }
         
         if (attempt === 3) {
-          console.log('All attempts failed, using fallback data');
-          return this.createMockData(url, platform);
+          console.log('All attempts failed, throwing error');
+          throw new Error(error.message || 'Failed to extract video information. Please check the link and try again.');
         }
         
         // Wait before retry
@@ -107,37 +149,8 @@ export class MediaExtractor {
       }
     }
 
-    // Fallback
-    return this.createMockData(url, platform);
-  }
-
-  private createMockData(url: string, platform: string): MediaData {
-    console.log('Creating fallback data for platform:', platform);
-    
-    const titles: Record<string, string> = {
-      youtube: 'YouTube Video',
-      instagram: 'Instagram Video',
-      facebook: 'Facebook Video',
-      twitter: 'Twitter Video',
-      vimeo: 'Vimeo Video',
-      tiktok: 'TikTok Video',
-      terabox: 'Terabox File',
-    };
-
-    return {
-      title: titles[platform] || 'Video',
-      thumbnail: 'https://via.placeholder.com/640x360',
-      duration: '5:23',
-      qualities: [
-        { quality: '1080p', format: 'mp4', size: '180 MB', url: url },
-        { quality: '720p', format: 'mp4', size: '95 MB', url: url },
-        { quality: '480p', format: 'mp4', size: '45 MB', url: url },
-      ],
-      audioFormats: [
-        { quality: '320kbps', format: 'mp3', size: '12 MB', url: url },
-        { quality: '128kbps', format: 'mp3', size: '5 MB', url: url },
-      ],
-    };
+    // Should never reach here, but just in case
+    throw new Error('Failed to extract video information after all attempts.');
   }
 }
 

@@ -47,14 +47,14 @@ async function extractUniversal(url) {
       // Terabox dlink (direct download link) - PRIORITY
       /"dlink"\s*:\s*"([^"]+)"/gi,
       /dlink['"]\s*:\s*['"](https?:\/\/[^'"]+)['"]/gi,
-      // Direct video files (prioritize non-preview)
-      /(https?:\/\/[^\s"'<>]+\.(?:mp4|webm|m4v|mov|avi|mkv|flv|wmv)(?:\?[^\s"'<>]*)?)/gi,
+      // Direct video files (prioritize non-preview, non-image paths)
+      /(https?:\/\/(?!.*(?:\/images\/|\/static\/images\/|\/img\/|rta-label|logo|banner))[^\s"'<>]+\.(?:mp4|webm|m4v|mov|mkv|flv|wmv)(?:\?[^\s"'<>]*)?)/gi,
       // HLS streams
       /(https?:\/\/[^\s"'<>]+\.m3u8(?:\?[^\s"'<>]*)?)/gi,
       // DASH streams
       /(https?:\/\/[^\s"'<>]+\.mpd(?:\?[^\s"'<>]*)?)/gi,
-      // Common video CDN patterns
-      /(https?:\/\/[^\s"'<>]*(?:video|media|cdn|stream)[^\s"'<>]*\.(?:mp4|m3u8|mpd)(?:\?[^\s"'<>]*)?)/gi,
+      // Common video CDN patterns (exclude image paths)
+      /(https?:\/\/(?!.*(?:\/images\/|\/static\/images\/|\/img\/))[^\s"'<>]*(?:video|media|cdn|stream)[^\s"'<>]*\.(?:mp4|m3u8|mpd)(?:\?[^\s"'<>]*)?)/gi,
     ];
 
     console.log('🔍 Searching HTML with regex patterns...');
@@ -249,8 +249,22 @@ function isVideoUrl(url) {
   
   const lowerUrl = url.toLowerCase();
   
-  // CRITICAL: Exclude JavaScript, CSS, and other non-video files
+  // CRITICAL: Exclude non-video files and assets
   if (/\.(js|css|json|xml|txt|html|jpg|jpeg|png|gif|svg|woff|woff2|ttf|eot|ico)(\?|$)/i.test(lowerUrl)) {
+    return false;
+  }
+  
+  // CRITICAL: Exclude common non-video paths
+  if (lowerUrl.includes('/images/') || 
+      lowerUrl.includes('/static/images/') ||
+      lowerUrl.includes('/img/') ||
+      lowerUrl.includes('/assets/images/') ||
+      lowerUrl.includes('rta-label') ||
+      lowerUrl.includes('logo') ||
+      lowerUrl.includes('banner') ||
+      lowerUrl.includes('placeholder') ||
+      lowerUrl.includes('thumbnail') ||
+      lowerUrl.includes('preview-image')) {
     return false;
   }
   
@@ -373,6 +387,12 @@ function requiresProxy(url) {
     'empflix.com',
     'motherless.com',
     'heavy-r.com',
+    'nudzr.com',
+    'sexu.com',
+    'porntrex.com',
+    'hdzog.com',
+    'vjav.com',
+    'javhd.com',
   ];
   
   return proxyDomains.some(domain => lowerUrl.includes(domain));

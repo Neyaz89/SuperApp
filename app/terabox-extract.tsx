@@ -5,7 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useDownload } from '@/contexts/DownloadContext';
 import TeraboxWebViewExtractor from '@/components/TeraboxWebViewExtractor';
-import { adManager } from '@/services/adManager';
+import { BannerAd } from '@/components/BannerAd';
 
 export default function TeraboxExtractScreen() {
   const router = useRouter();
@@ -16,11 +16,8 @@ export default function TeraboxExtractScreen() {
   const [isExtracting, setIsExtracting] = useState(true);
 
   useEffect(() => {
-    // Show interstitial ad when screen loads
-    const showAd = async () => {
-      await adManager.showInterstitial();
-    };
-    showAd();
+    // Don't show interstitial ad here - it already showed on homepage
+    // Showing it again causes the app to go to background and triggers unwanted redirects
   }, []);
 
   const handleExtractSuccess = (data: {
@@ -97,7 +94,17 @@ export default function TeraboxExtractScreen() {
           <Ionicons name="arrow-back" size={24} color={theme.primary} />
         </TouchableOpacity>
         <Text style={[styles.headerTitle, { color: theme.text }]}>Terabox Extraction</Text>
-        <View style={{ width: 48 }} />
+        <TouchableOpacity
+          onPress={() => router.back()}
+          style={[styles.closeButton, { backgroundColor: theme.primary + '15' }]}
+        >
+          <Ionicons name="close" size={24} color={theme.primary} />
+        </TouchableOpacity>
+      </View>
+
+      {/* Banner Ad at top */}
+      <View style={styles.topAdContainer}>
+        <BannerAd size="banner" adUnitId="ca-app-pub-4846583305979583/3193602836" />
       </View>
 
       {/* WebView Extractor */}
@@ -107,18 +114,6 @@ export default function TeraboxExtractScreen() {
           onExtractSuccess={handleExtractSuccess}
           onExtractError={handleExtractError}
         />
-      )}
-
-      {/* Cancel button */}
-      {isExtracting && (
-        <View style={styles.cancelContainer}>
-          <TouchableOpacity
-            style={[styles.cancelButton, { backgroundColor: theme.card }]}
-            onPress={() => router.back()}
-          >
-            <Text style={[styles.cancelButtonText, { color: theme.text }]}>Cancel</Text>
-          </TouchableOpacity>
-        </View>
       )}
     </View>
   );
@@ -148,29 +143,19 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  closeButton: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   headerTitle: {
     fontSize: 20,
     fontWeight: '800',
   },
-  cancelContainer: {
-    position: 'absolute',
-    bottom: 40,
-    left: 20,
-    right: 20,
-  },
-  cancelButton: {
-    paddingVertical: 16,
-    paddingHorizontal: 32,
-    borderRadius: 16,
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 12,
-    elevation: 4,
-  },
-  cancelButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
+  topAdContainer: {
+    width: '100%',
+    backgroundColor: '#F5F5F5',
   },
 });

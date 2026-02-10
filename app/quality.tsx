@@ -14,6 +14,7 @@ import { useDownload } from '@/contexts/DownloadContext';
 import { LinearGradient } from '@/components/LinearGradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { BannerAd } from '@/components/BannerAd';
 
 type MediaType = 'video' | 'audio';
 
@@ -207,44 +208,13 @@ export default function QualityScreen() {
       </View>
 
       <View style={styles.content}>
-        <Animated.View style={[styles.toggleContainer, { transform: [{ scale: scaleAnim }] }]}>
-          <TouchableOpacity
-            style={[
-              styles.toggleButton,
-              mediaType === 'video' && styles.toggleButtonActive,
-            ]}
-            onPress={() => {
-              setMediaType('video');
-              setSelectedIndex(0);
-            }}
-            activeOpacity={0.8}
-          >
-            <Text style={[styles.toggleEmoji, mediaType === 'video' && styles.toggleEmojiActive]}>
-              🎬
-            </Text>
-            <Text style={[styles.toggleText, mediaType === 'video' && styles.toggleTextActive]}>
-              Video
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[
-              styles.toggleButton,
-              mediaType === 'audio' && styles.toggleButtonActive,
-            ]}
-            onPress={() => {
-              setMediaType('audio');
-              setSelectedIndex(0);
-            }}
-            activeOpacity={0.8}
-          >
-            <Text style={[styles.toggleEmoji, mediaType === 'audio' && styles.toggleEmojiActive]}>
-              🎵
-            </Text>
-            <Text style={[styles.toggleText, mediaType === 'audio' && styles.toggleTextActive]}>
-              Audio
-            </Text>
-          </TouchableOpacity>
-        </Animated.View>
+        {/* Banner Ad instead of toggle */}
+        <View style={styles.bannerAdContainer}>
+          <BannerAd 
+            size="banner" 
+            adUnitId="ca-app-pub-4846583305979583/5794145204"
+          />
+        </View>
 
         <ScrollView style={styles.optionsList} showsVerticalScrollIndicator={false}>
           <Text style={styles.sectionTitle}>
@@ -375,42 +345,10 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
   },
-  toggleContainer: {
-    flexDirection: 'row',
-    marginHorizontal: 20,
-    marginBottom: 20,
-    padding: 6,
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    borderRadius: 25,
-  },
-  toggleButton: {
-    flex: 1,
-    flexDirection: 'row',
+  bannerAdContainer: {
     alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 14,
-    borderRadius: 20,
-    gap: 8,
-  },
-  toggleButtonActive: {
-    backgroundColor: '#60A5FA',
-  },
-  toggleEmoji: {
-    fontSize: 20,
-    opacity: 0.6,
-  },
-  toggleEmojiActive: {
-    opacity: 1,
-  },
-  toggleText: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#FFF',
-    opacity: 0.6,
-  },
-  toggleTextActive: {
-    color: '#2C3E50',
-    opacity: 1,
+    paddingVertical: 16,
+    paddingHorizontal: 20,
   },
   optionsList: {
     flex: 1,

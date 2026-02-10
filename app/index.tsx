@@ -23,6 +23,7 @@ import { detectPlatform, validateUrl } from '@/utils/urlParser';
 import { LinearGradient } from '@/components/LinearGradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { adManager } from '@/services/adManager';
+import { BannerAd } from '@/components/BannerAd';
 
 import { mediaExtractor } from '@/services/mediaExtractor';
 
@@ -223,21 +224,38 @@ export default function HomeScreen() {
       }, 500);
     } catch (err: any) {
       console.error('Error in handleAnalyze:', err);
+      
+      let errorType = 'extraction';
       let errorMessage = 'Failed to analyze media. ';
       
       if (err.message?.includes('Network request failed')) {
-        errorMessage += 'Check your internet connection.';
+        errorType = 'network';
+        errorMessage = 'Check your internet connection.';
       } else if (err.message?.includes('API request failed')) {
-        errorMessage += 'Server is busy, please try again.';
+        errorType = 'extraction';
+        errorMessage = 'Server is busy, please try again.';
       } else if (err.message?.includes('timeout')) {
-        errorMessage += 'Request timed out, please try again.';
+        errorType = 'timeout';
+        errorMessage = 'Request timed out, please try again.';
+      } else if (err.message?.includes('Invalid URL')) {
+        errorType = 'unsupported';
+        errorMessage = err.message || 'This link is not supported.';
       } else {
-        errorMessage += err.message || 'Please try again.';
+        errorMessage = err.message || 'Please try again.';
       }
       
-      setError(errorMessage);
       setLoading(false);
       setLoadingMessage('');
+      
+      // Navigate to error screen with details
+      router.push({
+        pathname: '/error',
+        params: {
+          type: errorType,
+          message: errorMessage,
+          url: url,
+        },
+      });
     }
   };
 
@@ -447,6 +465,11 @@ export default function HomeScreen() {
                 </Text>
               </View>
             </TouchableOpacity>
+          </View>
+
+          {/* Banner Ad at bottom */}
+          <View style={styles.bannerAdContainer}>
+            <BannerAd size="custom" customWidth={320} customHeight={150} />
           </View>
         </Animated.View>
       </KeyboardAvoidingView>
@@ -678,6 +701,10 @@ const styles = StyleSheet.create({
   bottomButtons: {
     flexDirection: 'row',
     gap: 12,
+  },
+  bannerAdContainer: {
+    marginTop: 16,
+    width: '100%',
   },
   gamesCard: {
     width: '100%',

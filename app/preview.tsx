@@ -87,46 +87,15 @@ export default function PreviewScreen() {
           </Text>
         </View>
 
-        {/* Stats cards */}
-        <View style={styles.statsContainer}>
-          <View style={[styles.statCard, { backgroundColor: '#A78BFA20' }]}>
-            <View style={styles.statIconContainer}>
-              <Ionicons name="videocam" size={28} color="#8B5CF6" />
-            </View>
-            <Text style={[styles.statValue, { color: '#8B5CF6' }]}>
-              {mediaInfo.qualities.length}
-            </Text>
-            <Text style={[styles.statLabel, { color: theme.textSecondary }]}>
-              Video Qualities
-            </Text>
-          </View>
-
-          <View style={[styles.statCard, { backgroundColor: '#60A5FA20' }]}>
-            <View style={styles.statIconContainer}>
-              <Ionicons name="musical-notes" size={28} color="#3B82F6" />
-            </View>
-            <Text style={[styles.statValue, { color: '#3B82F6' }]}>
-              {mediaInfo.audioFormats.length}
-            </Text>
-            <Text style={[styles.statLabel, { color: theme.textSecondary }]}>
-              Audio Formats
-            </Text>
-          </View>
-
-          <View style={[styles.statCard, { backgroundColor: '#F472B620' }]}>
-            <View style={styles.statIconContainer}>
-              <Ionicons name="time" size={28} color="#EC4899" />
-            </View>
-            <Text style={[styles.statValue, { color: '#EC4899' }]}>
-              {mediaInfo.duration}
-            </Text>
-            <Text style={[styles.statLabel, { color: theme.textSecondary }]}>
-              Duration
-            </Text>
-          </View>
+        {/* Simple quality info line */}
+        <View style={styles.qualityInfoContainer}>
+          <Ionicons name="checkmark-circle" size={20} color="#10B981" />
+          <Text style={[styles.qualityInfoText, { color: theme.text }]}>
+            Found {mediaInfo.qualities.length} video qualities
+          </Text>
         </View>
 
-        {/* Banner Ad */}
+        {/* Banner Ad - centered */}
         <View style={styles.adContainer}>
           <BannerAd 
             size="mediumRectangle" 
@@ -280,34 +249,21 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     lineHeight: 32,
   },
-  statsContainer: {
+  qualityInfoContainer: {
     flexDirection: 'row',
-    paddingHorizontal: 20,
-    paddingTop: 24,
-    gap: 12,
-  },
-  statCard: {
-    flex: 1,
-    padding: 16,
-    borderRadius: 20,
     alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingTop: 16,
+    gap: 8,
   },
-  statIconContainer: {
-    marginBottom: 8,
-  },
-  statValue: {
-    fontSize: 22,
-    fontWeight: '900',
-    marginBottom: 4,
-  },
-  statLabel: {
-    fontSize: 11,
+  qualityInfoText: {
+    fontSize: 15,
     fontWeight: '600',
-    textAlign: 'center',
   },
   adContainer: {
     paddingHorizontal: 20,
-    paddingTop: 24,
+    paddingTop: 32,
+    alignItems: 'center',
   },
   actionsContainer: {
     paddingHorizontal: 20,

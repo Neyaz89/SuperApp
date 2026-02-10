@@ -14,6 +14,7 @@ import { useDownload } from '@/contexts/DownloadContext';
 import { LinearGradient } from '@/components/LinearGradient';
 import * as Sharing from 'expo-sharing';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { BannerAd } from '@/components/BannerAd';
 
 export default function CompleteScreen() {
   const router = useRouter();
@@ -70,6 +71,14 @@ export default function CompleteScreen() {
         <Text style={[styles.subtitle, { color: theme.textSecondary }]}>
           Saved to your gallery
         </Text>
+
+        {/* Banner Ad */}
+        <View style={styles.bannerAdContainer}>
+          <BannerAd 
+            size="mediumRectangle" 
+            adUnitId="ca-app-pub-4846583305979583/5794145204"
+          />
+        </View>
 
         {/* Action buttons */}
         <View style={styles.actions}>
@@ -158,7 +167,11 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     textAlign: 'center',
-    marginBottom: 48,
+    marginBottom: 32,
+  },
+  bannerAdContainer: {
+    alignItems: 'center',
+    marginBottom: 32,
   },
   actions: {
     width: '100%',

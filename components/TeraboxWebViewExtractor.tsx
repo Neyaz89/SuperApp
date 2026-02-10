@@ -24,6 +24,7 @@ export default function TeraboxWebViewExtractor({
   const [isLoading, setIsLoading] = useState(true);
   const [extractionStatus, setExtractionStatus] = useState('Loading 1024terabox...');
   const [hasOpenedExternalBrowser, setHasOpenedExternalBrowser] = useState(false);
+  const hasExtractedRef = useRef(false); // Track if we've extracted successfully
   
   // Use 1024teradownloader.com - working downloader
   const downloaderUrl = `https://1024teradownloader.com/?url=${encodeURIComponent(url)}`;
@@ -32,22 +33,26 @@ export default function TeraboxWebViewExtractor({
     console.log(`[Terabox Debug] ${message}`);
   };
 
-  // Detect when app comes back from background (Chrome)
+  // Detect when app comes back from background (Chrome) - only redirect if download link was captured
   useEffect(() => {
     let wentToBackground = false;
     
     const subscription = AppState.addEventListener('change', (nextAppState) => {
       if (nextAppState === 'background' || nextAppState === 'inactive') {
-        // App went to background (Chrome opened)
+        // App went to background (Chrome opened for download or ad shown)
         wentToBackground = true;
-        console.log('📱 App went to background - Chrome likely opened');
-      } else if (nextAppState === 'active' && wentToBackground) {
-        // App came back to foreground
-        console.log('📱 App came back from Chrome - redirecting to homepage');
-        addDebugLog('📱 Redirecting to homepage...');
+        console.log('📱 App went to background');
+      } else if (nextAppState === 'active' && wentToBackground && hasExtractedRef.current) {
+        // App came back to foreground AND we already extracted the link
+        console.log('📱 App came back from Chrome after download - redirecting to homepage');
+        addDebugLog('📱 Download started in Chrome, redirecting to homepage...');
         
         // Navigate to homepage
         router.replace('/');
+      } else if (nextAppState === 'active' && wentToBackground) {
+        // App came back but no link was extracted yet (probably just an ad or user closed Chrome)
+        console.log('📱 App came back from background - continuing extraction');
+        wentToBackground = false; // Reset flag
       }
     });
 
@@ -181,6 +186,7 @@ export default function TeraboxWebViewExtractor({
       if (data.type === 'result') {
         if (data.success && data.downloadUrl) {
           console.log('✅ Got download link:', data.downloadUrl);
+          hasExtractedRef.current = true; // Mark as extracted
           setIsLoading(false);
           onExtractSuccess({
             title: data.title,
@@ -246,7 +252,8 @@ export default function TeraboxWebViewExtractor({
       console.log('✅ Captured Terabox CDN download link!');
       addDebugLog('✅ Captured download link!');
       
-      // Mark that external browser will open
+      // Mark that we've extracted successfully
+      hasExtractedRef.current = true;
       setHasOpenedExternalBrowser(true);
       
       // Stop the WebView and capture the link
@@ -284,7 +291,8 @@ export default function TeraboxWebViewExtractor({
       console.log('✅ Intercepted download link before navigation!');
       addDebugLog('✅ Captured download link!');
       
-      // Mark that external browser will open
+      // Mark that we've extracted successfully
+      hasExtractedRef.current = true;
       setHasOpenedExternalBrowser(true);
       
       setIsLoading(false);

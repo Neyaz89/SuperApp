@@ -10,8 +10,9 @@ import { useRouter } from 'expo-router';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useDownload } from '@/contexts/DownloadContext';
 import { LinearGradient } from '@/components/LinearGradient';
+import { BannerAd } from '@/components/BannerAd';
 import { adManager } from '@/services/adManager';
-import { downloadAsync, cacheDirectory, documentDirectory } from 'expo-file-system/legacy';
+import { createDownloadResumable, cacheDirectory, documentDirectory } from 'expo-file-system/legacy';
 import * as MediaLibrary from 'expo-media-library';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -101,19 +102,6 @@ export default function DownloadScreen() {
 
       setStatus('Downloading...');
 
-      // Simulate realistic progress during download
-      const progressInterval = setInterval(() => {
-        setProgress((prev) => {
-          if (prev >= 90) {
-            clearInterval(progressInterval);
-            return prev;
-          }
-          // Gradually increase progress
-          const increment = Math.random() * 5 + 2; // Random increment between 2-7%
-          return Math.min(prev + increment, 90);
-        });
-      }, 500);
-
       // Check if URL needs proxy (for adult sites)
       const needsProxy = (selectedQuality as any).needsProxy || false;
       const PROXY_API_URL = 'https://superapp-api-d3y5.onrender.com/api/download-proxy';
@@ -121,22 +109,42 @@ export default function DownloadScreen() {
       let downloadUrl = selectedQuality.url;
       if (needsProxy) {
         console.log('🔄 Using download proxy for adult site');
-        // Use the original source URL as referer (from mediaInfo)
         const sourceUrl = (mediaInfo as any)?.url || selectedQuality.url;
         const referer = sourceUrl;
         downloadUrl = `${PROXY_API_URL}?url=${encodeURIComponent(selectedQuality.url)}&referer=${encodeURIComponent(referer)}`;
         console.log('📍 Referer:', referer);
       }
 
-      const downloadResult = await downloadAsync(
+      // Use createDownloadResumable for real progress tracking
+      const downloadResumable = createDownloadResumable(
         downloadUrl,
-        fileUri
+        fileUri,
+        {},
+        (downloadProgress) => {
+          // Safely calculate progress percentage
+          if (downloadProgress.totalBytesExpectedToWrite > 0) {
+            const progressPercent = (downloadProgress.totalBytesWritten / downloadProgress.totalBytesExpectedToWrite) * 100;
+            setProgress(Math.min(Math.max(progressPercent, 0), 95)); // Clamp between 0-95%
+            
+            // Update status based on progress
+            if (progressPercent < 25) {
+              setStatus('Starting download...');
+            } else if (progressPercent < 75) {
+              setStatus('Downloading...');
+            } else {
+              setStatus('Almost done...');
+            }
+          } else {
+            // If size is unknown, show indeterminate progress
+            setStatus('Downloading...');
+          }
+        }
       );
 
-      clearInterval(progressInterval);
+      const downloadResult = await downloadResumable.downloadAsync();
 
-      if (downloadResult.status !== 200) {
-        throw new Error(`Download failed with status ${downloadResult.status}`);
+      if (!downloadResult || !downloadResult.uri) {
+        throw new Error('Download failed - no file received');
       }
 
       setProgress(95);
@@ -168,11 +176,32 @@ export default function DownloadScreen() {
       }, 500);
     } catch (error: any) {
       console.error('Download error details:', error);
-      setStatus(`Download failed: ${error.message || 'Unknown error'}`);
       
-      setTimeout(() => {
-        setStatus('Tap to retry or go back');
-      }, 2000);
+      let errorType = 'extraction';
+      let errorMessage = 'Download failed. ';
+      
+      if (error.message?.includes('404')) {
+        errorType = 'extraction';
+        errorMessage = 'The download link has expired. This happens with some platforms.';
+      } else if (error.message?.includes('Network')) {
+        errorType = 'network';
+        errorMessage = 'Check your internet connection.';
+      } else if (error.message?.includes('timeout')) {
+        errorType = 'timeout';
+        errorMessage = 'Download took too long.';
+      } else {
+        errorMessage = error.message || 'Please try again.';
+      }
+      
+      // Navigate to error screen
+      router.replace({
+        pathname: '/error',
+        params: {
+          type: errorType,
+          message: errorMessage,
+          url: (mediaInfo as any)?.url || '',
+        },
+      });
     }
   };
 
@@ -216,63 +245,63 @@ export default function DownloadScreen() {
       
       <View style={[styles.content, { 
         paddingTop: Math.max(insets.top, 20),
-        paddingBottom: Math.max(insets.bottom, 20)
       }]}>
-        <Animated.View
-          style={[
-            styles.iconContainer,
-            { transform: [{ scale: pulseAnim }] },
-          ]}
-        >
-          <View style={[styles.iconCircle, { backgroundColor: theme.primary + '20' }]}>
-            <View style={[styles.iconInner, { backgroundColor: theme.primary + '30' }]}>
-              <Text style={styles.iconText}>⬇️</Text>
-            </View>
+        {/* Clean Header */}
+        <View style={styles.headerSection}>
+          <View style={[styles.downloadIcon, { backgroundColor: theme.primary + '15' }]}>
+            <Text style={styles.downloadIconText}>📥</Text>
           </View>
-        </Animated.View>
+          <Text style={[styles.title, { color: theme.text }]}>Downloading</Text>
+          <Text style={[styles.subtitle, { color: theme.textSecondary }]}>
+            {selectedQuality?.quality} • {selectedQuality?.format.toUpperCase()}
+          </Text>
+        </View>
 
-        <Text style={[styles.title, { color: theme.text }]}>Downloading</Text>
-        <Text style={[styles.subtitle, { color: theme.textSecondary }]}>
-          {selectedQuality?.quality} • {selectedQuality?.format.toUpperCase()}
-        </Text>
-
-        <View style={styles.progressContainer}>
-          <View style={[styles.progressBar, { backgroundColor: theme.card }]}>
-            <Animated.View
-              style={[
-                styles.progressFill,
-                { width: progressWidth },
-              ]}
-            >
-              <LinearGradient
-                colors={isDark ? ['#4ECDC4', '#3AAFA9'] : ['#FF6B6B', '#EE5A6F']}
-                style={styles.progressGradient}
-              />
-            </Animated.View>
-          </View>
-          <View style={styles.progressInfo}>
-            <Text style={[styles.progressText, { color: theme.primary }]}>
+        {/* Professional Progress Card */}
+        <View style={[styles.progressCard, { backgroundColor: theme.card }]}>
+          {/* Large Percentage Display */}
+          <View style={styles.percentageContainer}>
+            <Text style={[styles.percentageText, { color: theme.primary }]}>
               {Math.round(progress)}%
             </Text>
-            <Text style={[styles.progressStatus, { color: theme.textSecondary }]}>
+            <Text style={[styles.percentageLabel, { color: theme.textSecondary }]}>
               {status}
+            </Text>
+          </View>
+
+          {/* Clean Progress Bar */}
+          <View style={[styles.progressBarWrapper, { backgroundColor: theme.primary + '15' }]}>
+            <Animated.View
+              style={[
+                styles.progressBarFill,
+                { 
+                  width: progressWidth,
+                  backgroundColor: theme.primary,
+                },
+              ]}
+            />
+          </View>
+
+          {/* Status Message */}
+          <View style={styles.statusMessageContainer}>
+            <View style={[styles.statusDot, { backgroundColor: theme.primary }]} />
+            <Text style={[styles.statusMessage, { color: theme.textSecondary }]}>
+              {progress < 25 ? 'Initializing download...' : 
+               progress < 50 ? 'Downloading your file...' : 
+               progress < 75 ? 'More than halfway there...' :
+               progress < 95 ? 'Almost complete...' : 
+               progress < 100 ? 'Saving to gallery...' :
+               'Download complete!'}
             </Text>
           </View>
         </View>
 
-        <View style={styles.statusCard}>
-          <View style={styles.statusIconContainer}>
-            <Text style={styles.statusIcon}>
-              {progress < 25 ? '🚀' : progress < 50 ? '⚡' : progress < 75 ? '✨' : progress < 100 ? '🎯' : '🎉'}
-            </Text>
-          </View>
-          <Text style={[styles.statusText, { color: theme.textSecondary }]}>
-            {progress < 25 ? 'Initializing download...' : 
-             progress < 50 ? 'Downloading at full speed...' : 
-             progress < 75 ? 'More than halfway there...' :
-             progress < 100 ? 'Almost done...' : 
-             'Complete!'}
-          </Text>
+        {/* Banner Ad at bottom */}
+        <View style={[styles.bannerAdContainer, { paddingBottom: Math.max(insets.bottom, 20) }]}>
+          <BannerAd 
+            size="banner" 
+            adUnitId="ca-app-pub-4846583305979583/5794145204"
+          />
         </View>
       </View>
     </View>
@@ -311,99 +340,84 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 40,
+    paddingHorizontal: 24,
   },
-  iconContainer: {
-    marginBottom: 32,
+  headerSection: {
+    alignItems: 'center',
+    marginBottom: 48,
   },
-  iconCircle: {
-    width: 140,
-    height: 140,
-    borderRadius: 70,
+  downloadIcon: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
     alignItems: 'center',
     justifyContent: 'center',
+    marginBottom: 20,
   },
-  iconInner: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  iconText: {
-    fontSize: 56,
-    fontWeight: '700',
+  downloadIconText: {
+    fontSize: 40,
   },
   title: {
-    fontSize: 36,
-    fontWeight: '900',
+    fontSize: 28,
+    fontWeight: '800',
     marginBottom: 8,
   },
   subtitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    marginBottom: 48,
-  },
-  progressContainer: {
-    width: '100%',
-    alignItems: 'center',
-    marginBottom: 32,
-  },
-  progressBar: {
-    width: '100%',
-    height: 16,
-    borderRadius: 8,
-    overflow: 'hidden',
-    marginBottom: 20,
-  },
-  progressFill: {
-    height: '100%',
-  },
-  progressGradient: {
-    flex: 1,
-  },
-  progressInfo: {
-    width: '100%',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  progressText: {
-    fontSize: 32,
-    fontWeight: '900',
-  },
-  progressStatus: {
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: '600',
   },
-  statusCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 24,
-    paddingVertical: 16,
-    borderRadius: 24,
-    gap: 12,
-    backgroundColor: 'rgba(139, 92, 246, 0.1)',
+  progressCard: {
+    width: '100%',
+    padding: 28,
+    borderRadius: 20,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.08,
     shadowRadius: 12,
-    elevation: 3,
+    elevation: 4,
+    marginBottom: 32,
   },
-  statusIconContainer: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#FF6B6B15',
+  percentageContainer: {
     alignItems: 'center',
-    justifyContent: 'center',
+    marginBottom: 24,
   },
-  statusIcon: {
-    fontSize: 20,
+  percentageText: {
+    fontSize: 56,
+    fontWeight: '900',
+    marginBottom: 4,
   },
-  statusText: {
-    fontSize: 15,
+  percentageLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  progressBarWrapper: {
+    width: '100%',
+    height: 8,
+    borderRadius: 4,
+    overflow: 'hidden',
+    marginBottom: 20,
+  },
+  progressBarFill: {
+    height: '100%',
+    borderRadius: 4,
+  },
+  statusMessageContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  statusDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  statusMessage: {
+    fontSize: 14,
     fontWeight: '600',
     flex: 1,
+  },
+  bannerAdContainer: {
+    alignItems: 'center',
+    marginTop: 'auto',
   },
 });
