@@ -4,11 +4,14 @@ import { InterstitialAd, RewardedAd, AdEventType, TestIds, RewardedAdEventType }
 export type AdType = 'banner' | 'interstitial' | 'rewarded';
 
 // Replace with your actual Ad Unit IDs from AdMob
-const INTERSTITIAL_AD_UNIT_ID = __DEV__
+// Use test ads until app is approved by AdMob
+const USE_TEST_ADS = true; // Set to false after AdMob approval
+
+const INTERSTITIAL_AD_UNIT_ID = USE_TEST_ADS || __DEV__
   ? TestIds.INTERSTITIAL
   : 'ca-app-pub-4846583305979583/3193602836';
 
-const REWARDED_AD_UNIT_ID = __DEV__
+const REWARDED_AD_UNIT_ID = USE_TEST_ADS || __DEV__
   ? TestIds.REWARDED
   : 'ca-app-pub-4846583305979583/3727228956';
 

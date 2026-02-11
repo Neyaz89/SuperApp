@@ -37,7 +37,11 @@
       ],
       "package": "com.superhub.media",
       "enableProguardInReleaseBuilds": true,
-      "enableShrinkResourcesInReleaseBuilds": true
+      "enableShrinkResourcesInReleaseBuilds": true,
+      "versionCode": 1,
+      "buildToolsVersion": "34.0.0",
+      "enableDensitySplitting": true,
+      "enableAbiSplitting": true
     },
     "plugins": [
       "expo-router",

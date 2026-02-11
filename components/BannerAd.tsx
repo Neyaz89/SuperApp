@@ -11,11 +11,14 @@ type BannerAdProps = {
 };
 
 // Ad Unit IDs
+// Use test ads until app is approved by AdMob
+const USE_TEST_ADS = true; // Set to false after AdMob approval
+
 const AD_UNIT_IDS = {
-  homepage: __DEV__ 
+  homepage: USE_TEST_ADS || __DEV__ 
     ? TestIds.BANNER 
     : 'ca-app-pub-4846583305979583/3887011051',
-  preview: __DEV__
+  preview: USE_TEST_ADS || __DEV__
     ? TestIds.BANNER
     : 'ca-app-pub-4846583305979583/5794145204',
 };
@@ -50,6 +53,7 @@ export function BannerAd({ size = 'banner', adUnitId, customWidth, customHeight 
   console.log('🎯 Banner Ad - Unit ID:', unitId);
   console.log('🎯 Banner Ad - Size:', size);
   console.log('🎯 Banner Ad - Dev Mode:', __DEV__);
+  console.log('🎯 Banner Ad - Using Test Ads:', USE_TEST_ADS);
 
   return (
     <View style={[styles.container, { 
