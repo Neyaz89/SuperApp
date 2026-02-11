@@ -12,7 +12,7 @@ type BannerAdProps = {
 
 // Ad Unit IDs
 // Use test ads until app is approved by AdMob
-const USE_TEST_ADS = true; // Set to false after AdMob approval
+const USE_TEST_ADS = false; // Set to false after AdMob approval
 
 const AD_UNIT_IDS = {
   homepage: USE_TEST_ADS || __DEV__ 

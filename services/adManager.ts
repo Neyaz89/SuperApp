@@ -5,7 +5,7 @@ export type AdType = 'banner' | 'interstitial' | 'rewarded';
 
 // Replace with your actual Ad Unit IDs from AdMob
 // Use test ads until app is approved by AdMob
-const USE_TEST_ADS = true; // Set to false after AdMob approval
+const USE_TEST_ADS = false; // Set to false after AdMob approval
 
 const INTERSTITIAL_AD_UNIT_ID = USE_TEST_ADS || __DEV__
   ? TestIds.INTERSTITIAL
