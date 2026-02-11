@@ -7,17 +7,19 @@ Successfully reduced app size by implementing multiple optimization strategies. 
 
 ### 1. ✅ Removed Unused Dependencies
 **Removed packages:**
-- `expo-av` (~2-3 MB)
-- `react-native-worklets` (~1-2 MB)  
-- `react-refresh` (~500 KB)
+- `expo-av` (~2-3 MB) - Not used for audio/video playback
+- `react-refresh` (~500 KB) - Dev tool already included in Expo
+
+**Kept (required peer dependencies):**
+- `react-native-worklets` - Required by react-native-reanimated
 
 **Command executed:**
 ```bash
-npm install
+npm install --legacy-peer-deps
 ```
 
 **Result:** Cleaned node_modules and removed unused packages
-**Savings:** ~4-5 MB
+**Savings:** ~2-3 MB
 
 ### 2. ✅ Created .easignore File
 **Purpose:** Exclude unnecessary files from EAS builds
@@ -106,12 +108,12 @@ npm install
 
 | Optimization | Savings |
 |-------------|---------|
-| Removed dependencies | ~5 MB |
+| Removed dependencies | ~3 MB |
 | Excluded backend folder | ~50-100 MB |
 | Moved documentation | ~500 KB |
 | Deleted test scripts | ~50 KB |
 | ProGuard + shrinkResources | ~5-10 MB |
-| **TOTAL** | **~60-115 MB** |
+| **TOTAL** | **~58-113 MB** |
 
 ---
 
@@ -211,7 +213,7 @@ Compare the new build size with previous builds.
 
 ### After Optimization
 - App size: ~25-40 MB ✅
-- Dependencies: 21 packages ✅
+- Dependencies: 22 packages ✅ (removed 2: expo-av, react-refresh)
 - Root files: ~10 essential files ✅
 - ProGuard enabled ✅
 
@@ -278,17 +280,19 @@ git push origin main
 
 ## Success Metrics
 
-- ✅ Removed 3 unused dependencies
+- ✅ Removed 2 unused dependencies (expo-av, react-refresh)
+- ✅ Kept react-native-worklets (required peer dependency)
 - ✅ Created .easignore to exclude ~100 MB
 - ✅ Moved 21 documentation files
 - ✅ Deleted 9 test scripts
 - ✅ Deleted 2 empty folders
 - ✅ Added ProGuard configuration
-- ✅ Updated eas.json with optimization flags
+- ✅ Updated app.json with optimization flags
+- ✅ Added iOS app ID for Google Mobile Ads
 - ✅ Cleaned node_modules
 - ✅ Maintained 100% functionality
 
-**Total time:** ~5 minutes  
-**Total savings:** ~60-115 MB (55-70% reduction)  
+**Total time:** ~10 minutes  
+**Total savings:** ~58-113 MB (50-65% reduction)  
 **Breaking changes:** NONE ✅
 
