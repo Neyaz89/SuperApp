@@ -114,12 +114,17 @@ export default function DownloadScreen() {
       const platform = (mediaInfo as any)?.platform || 'generic';
       
       // Auto-detect if proxy is needed based on URL patterns
-      const requiresProxy = needsProxy || 
-        selectedQuality.url.includes('desikahani') ||
+      // IMPORTANT: Token-based URLs (v-acctoken) should NOT use proxy
+      // because the token is tied to the user's session/IP
+      const hasToken = selectedQuality.url.includes('v-acctoken') || 
+                       selectedQuality.url.includes('token=') ||
+                       selectedQuality.url.includes('_token=');
+      
+      const requiresProxy = !hasToken && (
+        needsProxy || 
         selectedQuality.url.includes('xvideos') ||
-        selectedQuality.url.includes('pornhub') ||
-        selectedQuality.url.includes('v-acctoken') || // Token-based URLs
-        selectedQuality.url.includes('get_file'); // Protected file endpoints
+        selectedQuality.url.includes('pornhub')
+      );
       
       const PROXY_API_URL = 'https://superapp-api-d3y5.onrender.com/api/download-proxy';
       
@@ -132,7 +137,11 @@ export default function DownloadScreen() {
         console.log('📍 Referer:', referer);
         console.log('🔗 Proxy URL:', downloadUrl);
       } else {
-        console.log('⚡ Direct download (no proxy needed)');
+        if (hasToken) {
+          console.log('⚡ Direct download (token-based URL, proxy would break it)');
+        } else {
+          console.log('⚡ Direct download (no proxy needed)');
+        }
         console.log('🔗 Direct URL:', downloadUrl);
       }
 
@@ -141,7 +150,17 @@ export default function DownloadScreen() {
       const downloadResumable = createDownloadResumable(
         downloadUrl,
         fileUri,
-        {},
+        {
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.6099.230 Mobile Safari/537.36',
+            'Referer': (mediaInfo as any)?.url || 'https://www.desikahani2.net/',
+            'Accept': 'video/webm,video/ogg,video/*;q=0.9,*/*;q=0.8',
+            'Accept-Language': 'en-US,en;q=0.9',
+            'Sec-Fetch-Dest': 'video',
+            'Sec-Fetch-Mode': 'no-cors',
+            'Sec-Fetch-Site': 'same-origin',
+          }
+        },
         (downloadProgress) => {
           // Safely calculate progress percentage
           if (downloadProgress.totalBytesExpectedToWrite > 0) {
@@ -185,7 +204,17 @@ export default function DownloadScreen() {
           const directDownloadResumable = createDownloadResumable(
             selectedQuality.url, // Use original URL directly
             fileUri,
-            {},
+            {
+              headers: {
+                'User-Agent': 'Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.6099.230 Mobile Safari/537.36',
+                'Referer': (mediaInfo as any)?.url || 'https://www.desikahani2.net/',
+                'Accept': 'video/webm,video/ogg,video/*;q=0.9,*/*;q=0.8',
+                'Accept-Language': 'en-US,en;q=0.9',
+                'Sec-Fetch-Dest': 'video',
+                'Sec-Fetch-Mode': 'no-cors',
+                'Sec-Fetch-Site': 'same-origin',
+              }
+            },
             (downloadProgress) => {
               if (downloadProgress.totalBytesExpectedToWrite > 0) {
                 const progressPercent = (downloadProgress.totalBytesWritten / downloadProgress.totalBytesExpectedToWrite) * 100;
@@ -197,13 +226,22 @@ export default function DownloadScreen() {
           
           try {
             const directResult = await directDownloadResumable.downloadAsync();
-            console.log('✅ Direct download succeeded!');
+            console.log('✅ Direct download result:', directResult);
             
-            if (directResult && directResult.uri && directResult.status === 200) {
-              // Use the direct download result
+            // Check if direct download actually succeeded
+            if (directResult && directResult.uri) {
+              // Check status code
+              if (directResult.status && directResult.status !== 200 && directResult.status !== 206) {
+                console.error('❌ Direct download also failed with status:', directResult.status);
+                throw new Error(`Direct download failed with status ${directResult.status}`);
+              }
+              
+              // Check file validity
               const directFileInfo = await getInfoAsync(directResult.uri);
-              if (directFileInfo.exists && directFileInfo.size > 1000) {
-                console.log('✅ Direct download file is valid');
+              console.log('📄 Direct download file info:', directFileInfo);
+              
+              if (directFileInfo.exists && 'size' in directFileInfo && directFileInfo.size > 1000) {
+                console.log('✅ Direct download file is valid, size:', directFileInfo.size);
                 // Continue with this result
                 setProgress(95);
                 setStatus('Saving to gallery...');
@@ -234,7 +272,14 @@ export default function DownloadScreen() {
                   router.replace('/complete');
                 }, 500);
                 return; // Exit successfully
+              } else {
+                const sizeInfo = 'size' in directFileInfo ? directFileInfo.size : 'unknown';
+                console.error('❌ Direct download file is invalid or too small:', sizeInfo);
+                throw new Error('Direct download file is invalid');
               }
+            } else {
+              console.error('❌ Direct download returned no result');
+              throw new Error('Direct download returned no result');
             }
           } catch (directError: any) {
             console.error('❌ Direct download also failed:', directError.message);
@@ -259,7 +304,7 @@ export default function DownloadScreen() {
         throw new Error('Downloaded file does not exist');
       }
       
-      if (fileInfo.size === 0 || fileInfo.size < 1000) {
+      if ('size' in fileInfo && (fileInfo.size === 0 || fileInfo.size < 1000)) {
         throw new Error('Downloaded file is empty or too small (likely an error response)');
       }
 

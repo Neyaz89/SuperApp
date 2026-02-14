@@ -89,7 +89,7 @@ export default function HTML5GamesBrowser() {
         </TouchableOpacity>
         
         <View style={styles.headerContent}>
-          <Text style={[styles.title, { color: theme.text }]}>HTML5 Games</Text>
+          <Text style={[styles.title, { color: theme.text }]}>Online Games</Text>
           <Text style={[styles.subtitle, { color: theme.textSecondary }]}>
             {getTotalGamesCount()}+ Ad-Free Games
           </Text>

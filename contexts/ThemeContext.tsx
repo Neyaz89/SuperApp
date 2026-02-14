@@ -53,8 +53,8 @@ const darkTheme: Theme = {
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const systemColorScheme = useColorScheme();
-  const [isDark, setIsDark] = useState(systemColorScheme === 'dark');
+  // Always start in light mode (false = light mode)
+  const [isDark, setIsDark] = useState(false);
 
   useEffect(() => {
     loadThemePreference();
@@ -66,6 +66,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       if (savedTheme !== null) {
         setIsDark(savedTheme === 'dark');
       }
+      // If no saved preference, default to light mode (already set in useState)
     } catch (error) {
       console.log('Failed to load theme preference');
     }

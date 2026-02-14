@@ -31,7 +31,7 @@ const GAMES: Game[] = [
 
 const HTML5_FEATURED = {
   id: 'html5',
-  name: 'HTML5 Games',
+  name: 'Online Games',
   icon: '🎮',
   tagline: '24 Premium Ad-Free Games',
   route: 'games/html5-browser' as const,
