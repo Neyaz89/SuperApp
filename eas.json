@@ -23,8 +23,7 @@
       "android": {
         "buildType": "apk",
         "gradleCommand": ":app:assembleRelease"
-      },
-      "channel": "preview"
+      }
     },
     "preview-aab": {
       "distribution": "internal",
@@ -36,8 +35,7 @@
       "android": {
         "buildType": "app-bundle",
         "gradleCommand": ":app:bundleRelease"
-      },
-      "channel": "preview"
+      }
     },
     "production": {
       "node": "22.12.0",
@@ -48,8 +46,7 @@
       "android": {
         "buildType": "app-bundle",
         "gradleCommand": ":app:bundleRelease"
-      },
-      "channel": "production"
+      }
     }
   },
   "submit": {
