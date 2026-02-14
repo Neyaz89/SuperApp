@@ -54,7 +54,43 @@ module.exports = async (req, res) => {
       
       console.log('✓ Added Terabox authentication cookies');
     }
-    // For adult sites, fetch session cookies
+    // For desikahani and similar adult sites
+    else if (url.includes('desikahani')) {
+      console.log('🔵 Desikahani detected - fetching session cookies');
+      
+      try {
+        // First, visit the main page to get session cookies
+        const mainPageUrl = finalReferer;
+        console.log('🍪 Fetching cookies from:', mainPageUrl);
+        
+        const pageResponse = await axios.get(mainPageUrl, {
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+            'Accept-Language': 'en-US,en;q=0.5',
+            'Accept-Encoding': 'gzip, deflate, br',
+            'Connection': 'keep-alive',
+            'Upgrade-Insecure-Requests': '1',
+          },
+          timeout: 15000,
+          maxRedirects: 5,
+        });
+        
+        // Extract all cookies
+        if (pageResponse.headers['set-cookie']) {
+          cookies = pageResponse.headers['set-cookie']
+            .map(cookie => cookie.split(';')[0])
+            .join('; ');
+          console.log('✓ Got session cookies:', cookies.substring(0, 100) + '...');
+        } else {
+          console.log('⚠️ No cookies received from page');
+        }
+      } catch (e) {
+        console.log('⚠️ Could not fetch session cookies:', e.message);
+        // Continue without cookies - might still work
+      }
+    }
+    // For other adult sites, fetch session cookies
     else if (isAdultSite) {
       try {
         console.log('🍪 Fetching session cookies from:', finalReferer);
@@ -87,15 +123,24 @@ module.exports = async (req, res) => {
       'Accept': 'video/webm,video/ogg,video/*;q=0.9,application/ogg;q=0.7,audio/*;q=0.6,*/*;q=0.5',
       'Accept-Language': 'en-US,en;q=0.5',
       'Accept-Encoding': 'identity',
-      'Range': req.headers.range || 'bytes=0-',
+      'Connection': 'keep-alive',
+      'Sec-Fetch-Dest': 'video',
+      'Sec-Fetch-Mode': 'no-cors',
+      'Sec-Fetch-Site': 'same-origin',
     };
+
+    // Add Range header if client requested it
+    if (req.headers.range) {
+      headers['Range'] = req.headers.range;
+    }
 
     // Add cookies if we got them
     if (cookies) {
       headers['Cookie'] = cookies;
+      console.log('🍪 Using cookies for request');
     }
 
-    console.log('📥 Downloading with headers...');
+    console.log('📥 Downloading with headers:', Object.keys(headers).join(', '));
 
     // Stream the video with proper headers
     const response = await axios({
@@ -118,10 +163,35 @@ module.exports = async (req, res) => {
     }
 
     if (response.status === 403) {
-      console.error('❌ Access forbidden - may need authentication');
+      console.error('❌ Access forbidden - authentication failed');
+      console.error('Response headers:', response.headers);
+      
+      // Log response body for debugging
+      let errorBody = '';
+      try {
+        const chunks = [];
+        for await (const chunk of response.data) {
+          chunks.push(chunk);
+          if (chunks.length > 10) break; // Only read first few chunks
+        }
+        errorBody = Buffer.concat(chunks).toString('utf8').substring(0, 500);
+        console.error('Response body preview:', errorBody);
+      } catch (e) {
+        console.error('Could not read error body:', e.message);
+      }
+      
       return res.status(403).json({ 
         error: 'Access forbidden',
-        message: 'This video requires authentication or has restricted access.' 
+        message: 'Authentication failed. The video may require login or have restricted access.',
+        details: errorBody.substring(0, 200)
+      });
+    }
+
+    if (response.status >= 400) {
+      console.error(`❌ HTTP error ${response.status}`);
+      return res.status(response.status).json({ 
+        error: `HTTP ${response.status}`,
+        message: 'Failed to download video from source server.' 
       });
     }
 

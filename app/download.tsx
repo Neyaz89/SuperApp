@@ -12,8 +12,7 @@ import { useDownload } from '@/contexts/DownloadContext';
 import { LinearGradient } from '@/components/LinearGradient';
 import { BannerAd } from '@/components/BannerAd';
 import { adManager } from '@/services/adManager';
-import { createDownloadResumable, cacheDirectory, documentDirectory } from 'expo-file-system/legacy';
-import * as FileSystem from 'expo-file-system';
+import { createDownloadResumable, cacheDirectory, documentDirectory, getInfoAsync } from 'expo-file-system/legacy';
 import * as MediaLibrary from 'expo-media-library';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -175,16 +174,93 @@ export default function DownloadScreen() {
         throw new Error('Download failed - no file received');
       }
 
+      // Check response status if available
+      if (downloadResult.status && downloadResult.status !== 200 && downloadResult.status !== 206) {
+        console.error('❌ Bad response status:', downloadResult.status);
+        
+        // If proxy failed with 403, try direct download as fallback
+        if (downloadResult.status === 403 && requiresProxy) {
+          console.log('🔄 Proxy failed with 403, trying direct download as fallback...');
+          
+          const directDownloadResumable = createDownloadResumable(
+            selectedQuality.url, // Use original URL directly
+            fileUri,
+            {},
+            (downloadProgress) => {
+              if (downloadProgress.totalBytesExpectedToWrite > 0) {
+                const progressPercent = (downloadProgress.totalBytesWritten / downloadProgress.totalBytesExpectedToWrite) * 100;
+                setProgress(Math.min(Math.max(progressPercent, 0), 95));
+                console.log(`📊 Direct download progress: ${progressPercent.toFixed(1)}%`);
+              }
+            }
+          );
+          
+          try {
+            const directResult = await directDownloadResumable.downloadAsync();
+            console.log('✅ Direct download succeeded!');
+            
+            if (directResult && directResult.uri && directResult.status === 200) {
+              // Use the direct download result
+              const directFileInfo = await getInfoAsync(directResult.uri);
+              if (directFileInfo.exists && directFileInfo.size > 1000) {
+                console.log('✅ Direct download file is valid');
+                // Continue with this result
+                setProgress(95);
+                setStatus('Saving to gallery...');
+                
+                const asset = await MediaLibrary.createAssetAsync(directResult.uri);
+                
+                try {
+                  await MediaLibrary.createAlbumAsync('SuperApp', asset, false);
+                } catch (e) {
+                  const album = await MediaLibrary.getAlbumAsync('SuperApp');
+                  if (album) {
+                    await MediaLibrary.addAssetsToAlbumAsync([asset], album, false);
+                  }
+                }
+                
+                setProgress(100);
+                setStatus('Download complete!');
+                console.log('🎉 DOWNLOAD COMPLETE (via direct fallback)!');
+                
+                setDownloadedFile({
+                  uri: directResult.uri,
+                  type: selectedQuality.type,
+                  quality: selectedQuality.quality,
+                  format: selectedQuality.format,
+                });
+                
+                setTimeout(() => {
+                  router.replace('/complete');
+                }, 500);
+                return; // Exit successfully
+              }
+            }
+          } catch (directError: any) {
+            console.error('❌ Direct download also failed:', directError.message);
+          }
+        }
+        
+        // If we get here, both proxy and direct failed
+        if (downloadResult.status === 403) {
+          throw new Error('Access forbidden - authentication failed (tried both proxy and direct)');
+        } else if (downloadResult.status === 404) {
+          throw new Error('Video not found - URL may have expired');
+        } else {
+          throw new Error(`Download failed with status ${downloadResult.status}`);
+        }
+      }
+
       // Check if file actually exists and has content
-      const fileInfo = await FileSystem.getInfoAsync(downloadResult.uri);
+      const fileInfo = await getInfoAsync(downloadResult.uri);
       console.log('📄 File info:', fileInfo);
       
       if (!fileInfo.exists) {
         throw new Error('Downloaded file does not exist');
       }
       
-      if (fileInfo.size === 0) {
-        throw new Error('Downloaded file is empty (0 bytes)');
+      if (fileInfo.size === 0 || fileInfo.size < 1000) {
+        throw new Error('Downloaded file is empty or too small (likely an error response)');
       }
 
       setProgress(95);
