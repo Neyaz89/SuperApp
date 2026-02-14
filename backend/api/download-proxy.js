@@ -24,6 +24,13 @@ module.exports = async (req, res) => {
     // For sites that need session cookies, fetch the referer page first
     let cookies = '';
     
+    // Detect adult sites that need special handling
+    const isAdultSite = url.includes('desikahani') || 
+                        url.includes('hdtube.porn') || 
+                        url.includes('xvideos') ||
+                        url.includes('pornhub') ||
+                        url.includes('get_file');
+    
     // For Ashlynn proxy, it handles cookies internally - just pass through
     if (isAshlynnProxy) {
       console.log('🔵 Ashlynn proxy detected - letting proxy handle authentication');
@@ -48,14 +55,17 @@ module.exports = async (req, res) => {
       console.log('✓ Added Terabox authentication cookies');
     }
     // For adult sites, fetch session cookies
-    else if (url.includes('hdtube.porn') || url.includes('get_file')) {
+    else if (isAdultSite) {
       try {
         console.log('🍪 Fetching session cookies from:', finalReferer);
         const pageResponse = await axios.get(finalReferer, {
           headers: {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+            'Accept-Language': 'en-US,en;q=0.5',
           },
           timeout: 10000,
+          maxRedirects: 5,
         });
         
         // Extract cookies from response
@@ -63,7 +73,7 @@ module.exports = async (req, res) => {
           cookies = pageResponse.headers['set-cookie']
             .map(cookie => cookie.split(';')[0])
             .join('; ');
-          console.log('✓ Got session cookies');
+          console.log('✓ Got session cookies:', cookies.substring(0, 100) + '...');
         }
       } catch (e) {
         console.log('⚠️ Could not fetch session cookies:', e.message);

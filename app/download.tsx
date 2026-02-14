@@ -13,6 +13,7 @@ import { LinearGradient } from '@/components/LinearGradient';
 import { BannerAd } from '@/components/BannerAd';
 import { adManager } from '@/services/adManager';
 import { createDownloadResumable, cacheDirectory, documentDirectory } from 'expo-file-system/legacy';
+import * as FileSystem from 'expo-file-system';
 import * as MediaLibrary from 'expo-media-library';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -77,14 +78,19 @@ export default function DownloadScreen() {
 
   const startDownload = async () => {
     try {
+      console.log('=== DOWNLOAD STARTED ===');
+      console.log('Selected Quality:', JSON.stringify(selectedQuality, null, 2));
+      
       const { status: permissionStatus } = await MediaLibrary.requestPermissionsAsync();
       
       if (permissionStatus !== 'granted') {
+        console.error('❌ Permission denied');
         setStatus('Permission denied');
         return;
       }
 
       if (!selectedQuality?.url) {
+        console.error('❌ No download URL available');
         setStatus('No download URL available');
         return;
       }
@@ -100,22 +106,39 @@ export default function DownloadScreen() {
       const filename = `SuperHub_${Date.now()}.${selectedQuality.format}`;
       const fileUri = baseDir + filename;
 
+      console.log('📁 Download path:', fileUri);
+
       setStatus('Downloading...');
 
-      // Check if URL needs proxy (for adult sites)
+      // Check if URL needs proxy (for adult sites or sites with auth)
       const needsProxy = (selectedQuality as any).needsProxy || false;
+      const platform = (mediaInfo as any)?.platform || 'generic';
+      
+      // Auto-detect if proxy is needed based on URL patterns
+      const requiresProxy = needsProxy || 
+        selectedQuality.url.includes('desikahani') ||
+        selectedQuality.url.includes('xvideos') ||
+        selectedQuality.url.includes('pornhub') ||
+        selectedQuality.url.includes('v-acctoken') || // Token-based URLs
+        selectedQuality.url.includes('get_file'); // Protected file endpoints
+      
       const PROXY_API_URL = 'https://superapp-api-d3y5.onrender.com/api/download-proxy';
       
       let downloadUrl = selectedQuality.url;
-      if (needsProxy) {
-        console.log('🔄 Using download proxy for adult site');
+      if (requiresProxy) {
+        console.log('🔄 Using download proxy (detected protected URL)');
         const sourceUrl = (mediaInfo as any)?.url || selectedQuality.url;
         const referer = sourceUrl;
         downloadUrl = `${PROXY_API_URL}?url=${encodeURIComponent(selectedQuality.url)}&referer=${encodeURIComponent(referer)}`;
         console.log('📍 Referer:', referer);
+        console.log('🔗 Proxy URL:', downloadUrl);
+      } else {
+        console.log('⚡ Direct download (no proxy needed)');
+        console.log('🔗 Direct URL:', downloadUrl);
       }
 
       // Use createDownloadResumable for real progress tracking
+      console.log('📥 Creating download resumable...');
       const downloadResumable = createDownloadResumable(
         downloadUrl,
         fileUri,
@@ -125,6 +148,8 @@ export default function DownloadScreen() {
           if (downloadProgress.totalBytesExpectedToWrite > 0) {
             const progressPercent = (downloadProgress.totalBytesWritten / downloadProgress.totalBytesExpectedToWrite) * 100;
             setProgress(Math.min(Math.max(progressPercent, 0), 95)); // Clamp between 0-95%
+            
+            console.log(`📊 Progress: ${progressPercent.toFixed(1)}% (${downloadProgress.totalBytesWritten}/${downloadProgress.totalBytesExpectedToWrite} bytes)`);
             
             // Update status based on progress
             if (progressPercent < 25) {
@@ -136,33 +161,54 @@ export default function DownloadScreen() {
             }
           } else {
             // If size is unknown, show indeterminate progress
+            console.log(`📊 Progress: ${downloadProgress.totalBytesWritten} bytes (size unknown)`);
             setStatus('Downloading...');
           }
         }
       );
 
+      console.log('⏳ Starting download async...');
       const downloadResult = await downloadResumable.downloadAsync();
+      console.log('✅ Download result:', downloadResult);
 
       if (!downloadResult || !downloadResult.uri) {
         throw new Error('Download failed - no file received');
       }
 
+      // Check if file actually exists and has content
+      const fileInfo = await FileSystem.getInfoAsync(downloadResult.uri);
+      console.log('📄 File info:', fileInfo);
+      
+      if (!fileInfo.exists) {
+        throw new Error('Downloaded file does not exist');
+      }
+      
+      if (fileInfo.size === 0) {
+        throw new Error('Downloaded file is empty (0 bytes)');
+      }
+
       setProgress(95);
       setStatus('Saving to gallery...');
+      console.log('💾 Saving to gallery...');
 
       const asset = await MediaLibrary.createAssetAsync(downloadResult.uri);
+      console.log('✅ Asset created:', asset.id);
       
       try {
         await MediaLibrary.createAlbumAsync('SuperApp', asset, false);
+        console.log('✅ Album created');
       } catch (e) {
+        console.log('📁 Album exists, adding to existing...');
         const album = await MediaLibrary.getAlbumAsync('SuperApp');
         if (album) {
           await MediaLibrary.addAssetsToAlbumAsync([asset], album, false);
+          console.log('✅ Added to existing album');
         }
       }
 
       setProgress(100);
       setStatus('Download complete!');
+      console.log('🎉 DOWNLOAD COMPLETE!');
 
       setDownloadedFile({
         uri: downloadResult.uri,
@@ -175,22 +221,30 @@ export default function DownloadScreen() {
         router.replace('/complete');
       }, 500);
     } catch (error: any) {
-      console.error('Download error details:', error);
+      console.error('❌ DOWNLOAD ERROR:', error);
+      console.error('Error message:', error.message);
+      console.error('Error stack:', error.stack);
       
       let errorType = 'extraction';
       let errorMessage = 'Download failed. ';
       
-      if (error.message?.includes('404')) {
+      if (error.message?.includes('404') || error.message?.includes('Not Found')) {
         errorType = 'extraction';
-        errorMessage = 'The download link has expired. This happens with some platforms.';
-      } else if (error.message?.includes('Network')) {
+        errorMessage = 'The download link has expired or is invalid. This happens with some platforms.';
+      } else if (error.message?.includes('403') || error.message?.includes('Forbidden')) {
+        errorType = 'extraction';
+        errorMessage = 'Access denied. The video may be protected or require authentication.';
+      } else if (error.message?.includes('Network') || error.message?.includes('network')) {
         errorType = 'network';
-        errorMessage = 'Check your internet connection.';
+        errorMessage = 'Network error. Check your internet connection.';
       } else if (error.message?.includes('timeout')) {
         errorType = 'timeout';
-        errorMessage = 'Download took too long.';
+        errorMessage = 'Download took too long. Try again.';
+      } else if (error.message?.includes('empty') || error.message?.includes('0 bytes')) {
+        errorType = 'extraction';
+        errorMessage = 'Downloaded file is empty. The video URL may be invalid.';
       } else {
-        errorMessage = error.message || 'Please try again.';
+        errorMessage = error.message || 'Unknown error. Please try again.';
       }
       
       // Navigate to error screen
