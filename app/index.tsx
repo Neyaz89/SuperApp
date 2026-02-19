@@ -22,8 +22,8 @@ import { useDownload } from '@/contexts/DownloadContext';
 import { detectPlatform, validateUrl } from '@/utils/urlParser';
 import { LinearGradient } from '@/components/LinearGradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { adManager } from '@/services/adManager';
-import { BannerAd } from '@/components/BannerAd';
+import levelPlayAdsManager, { PLACEMENT_IDS } from '@/services/levelPlayAdsManager';
+import LevelPlayBannerAd from '@/components/LevelPlayBannerAd';
 
 import { mediaExtractor } from '@/services/mediaExtractor';
 
@@ -174,7 +174,8 @@ export default function HomeScreen() {
         // Show rewarded ad
         (async () => {
           setLoadingMessage('Loading ad...');
-          await adManager.showRewarded();
+          // TODO: Implement rewarded ad with IronSource
+          // await levelPlayAdsManager.showRewarded(PLACEMENT_IDS.REWARDED);
           return true;
         })(),
         // Extract media info in background while ad plays
@@ -469,7 +470,7 @@ export default function HomeScreen() {
 
           {/* Banner Ad at bottom */}
           <View style={styles.bannerAdContainer}>
-            <BannerAd size="custom" customWidth={320} customHeight={150} />
+            <LevelPlayBannerAd placementId={PLACEMENT_IDS.BANNER_BOTTOM} />
           </View>
         </Animated.View>
       </KeyboardAvoidingView>

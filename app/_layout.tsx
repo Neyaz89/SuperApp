@@ -3,9 +3,24 @@ import { useEffect } from 'react';
 import { useColorScheme } from 'react-native';
 import { ThemeProvider } from '@/contexts/ThemeContext';
 import { DownloadProvider } from '@/contexts/DownloadContext';
+import levelPlayAdsManager from '@/services/levelPlayAdsManager';
 
 export default function RootLayout() {
   const colorScheme = useColorScheme();
+
+  useEffect(() => {
+    // Initialize LevelPlay (ironSource with Unity Ads mediation)
+    const initAds = async () => {
+      const success = await levelPlayAdsManager.initialize();
+      if (success) {
+        console.log('LevelPlay ads initialized successfully');
+      } else {
+        console.error('Failed to initialize LevelPlay ads');
+      }
+    };
+    
+    initAds();
+  }, []);
 
   return (
     <ThemeProvider>

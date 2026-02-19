@@ -33,12 +33,12 @@
         "android.permission.READ_MEDIA_VIDEO",
         "android.permission.READ_MEDIA_AUDIO",
         "android.permission.READ_MEDIA_VISUAL_USER_SELECTED",
-        "android.permission.READ_MEDIA_IMAGES"
+        "android.permission.READ_MEDIA_IMAGES",
+        "com.google.android.gms.permission.AD_ID"
       ],
       "package": "com.superhub.media",
       "enableProguardInReleaseBuilds": true,
       "enableShrinkResourcesInReleaseBuilds": true,
-      "versionCode": 1,
       "buildToolsVersion": "34.0.0",
       "minSdkVersion": 26,
       "targetSdkVersion": 34,
@@ -55,13 +55,6 @@
         }
       ],
       [
-        "react-native-google-mobile-ads",
-        {
-          "androidAppId": "ca-app-pub-4846583305979583~7315110438",
-          "iosAppId": "ca-app-pub-4846583305979583~7315110438"
-        }
-      ],
-      [
         "react-native-compressor",
         {
           "enableBackgroundMode": true
@@ -72,9 +65,9 @@
     "extra": {
       "router": {},
       "eas": {
-        "projectId": "ec4e9340-3d51-4c13-b7a8-6a87eaeeb60b"
+        "projectId": "0115a3e2-26d6-4e69-87ae-7aa1c6c38528"
       }
     },
-    "owner": "neyaz12"
+    "owner": "yasmin8"
   }
 }

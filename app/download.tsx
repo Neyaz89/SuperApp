@@ -10,8 +10,8 @@ import { useRouter } from 'expo-router';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useDownload } from '@/contexts/DownloadContext';
 import { LinearGradient } from '@/components/LinearGradient';
-import { BannerAd } from '@/components/BannerAd';
-import { adManager } from '@/services/adManager';
+import LevelPlayBannerAd from '@/components/LevelPlayBannerAd';
+import levelPlayAdsManager, { PLACEMENT_IDS } from '@/services/levelPlayAdsManager';
 import { createDownloadResumable, cacheDirectory, documentDirectory, getInfoAsync } from 'expo-file-system/legacy';
 import * as MediaLibrary from 'expo-media-library';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -62,7 +62,8 @@ export default function DownloadScreen() {
   }, []);
 
   const showAdAndDownload = async () => {
-    await adManager.showInterstitial();
+    // TODO: Implement interstitial ad with IronSource
+    // await levelPlayAdsManager.showInterstitial(PLACEMENT_IDS.INTERSTITIAL);
     startDownload();
   };
 
@@ -473,10 +474,7 @@ export default function DownloadScreen() {
 
         {/* Banner Ad at bottom */}
         <View style={[styles.bannerAdContainer, { paddingBottom: Math.max(insets.bottom, 20) }]}>
-          <BannerAd 
-            size="banner" 
-            adUnitId="ca-app-pub-4846583305979583/5794145204"
-          />
+          <LevelPlayBannerAd placementId={PLACEMENT_IDS.BANNER_PREVIEW} />
         </View>
       </View>
     </View>
