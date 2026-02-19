@@ -1,0 +1,31 @@
+diff --git a/node_modules/ironsource-mediation/android/src/main/java/com/ironsource/react_native_mediation/IronSourceMediationModule.kt b/node_modules/ironsource-mediation/android/src/main/java/com/ironsource/react_native_mediation/IronSourceMediationModule.kt
+index 1234567..abcdefg 100644
+--- a/node_modules/ironsource-mediation/android/src/main/java/com/ironsource/react_native_mediation/IronSourceMediationModule.kt
++++ b/node_modules/ironsource-mediation/android/src/main/java/com/ironsource/react_native_mediation/IronSourceMediationModule.kt
+@@ -81,7 +81,7 @@ class IronSourceMediationModule(reactContext: ReactApplicationContext) :
+   @ReactMethod
+   fun showRewardedVideo(placementName: String?) {
+     activity?.let { activity ->
+-      currentActivity?.apply {
++      activity.apply {
+         runOnUiThread {
+           IronSource.showRewardedVideo(placementName)
+         }
+@@ -99,7 +99,7 @@ class IronSourceMediationModule(reactContext: ReactApplicationContext) :
+   @ReactMethod
+   fun showInterstitial(placementName: String?) {
+     activity?.let { activity ->
+-      currentActivity?.apply {
++      activity.apply {
+         runOnUiThread {
+           IronSource.showInterstitial(placementName)
+         }
+@@ -114,7 +114,7 @@ class IronSourceMediationModule(reactContext: ReactApplicationContext) :
+   @ReactMethod
+   fun loadBanner(options: ReadableMap, promise: Promise) {
+     activity?.let { activity ->
+-      currentActivity?.apply {
++      activity.apply {
+         runOnUiThread {
+           // Banner loading logic
+         }

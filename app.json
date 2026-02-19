@@ -59,7 +59,8 @@
         {
           "enableBackgroundMode": true
         }
-      ]
+      ],
+      "./plugins/fix-ironsource.js"
     ],
     "sdkVersion": "54.0.0",
     "extra": {
